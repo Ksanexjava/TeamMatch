@@ -2,9 +2,9 @@
 # Лента анкет, лайк / лайк+сообщение / пропуск, мэтчи, уведомления.
 #
 # Логика подбора — в core/ (recommendations, interactions), данные — через db/repo.
-# Карточки и сообщение о мэтче отправляются НОВЫМИ сообщениями (внизу), а не правкой
-# старого — так меню всегда под анкетой, а не «висит» сверху. Отсвайпанная карточка
-# гасится (кнопки убираются), чтобы её нельзя было нажать повторно.
+# Карточки и сообщение о мэтче отправляются НОВЫМИ сообщениями (внизу) и ОСТАЮТСЯ в чате
+# как история свайпов. Кнопки — на каждой карточке, поэтому у самой свежей (внизу)
+# действия всегда под рукой. Reply-клавиатуры («залипающей» снизу) в MAX нет — только inline.
 
 from maxapi import F
 from maxapi.context.base import BaseContext
@@ -45,14 +45,6 @@ async def _send_to(event, user_id: str, text: str, attachments=None) -> None:
             await event.bot.send_message(user_id=int(user_id), text=text, attachments=attachments or [])
     except Exception:
         pass  # человек мог не открывать бота — молча пропускаем, не роняем бота
-
-
-async def _drop_buttons(event, marker: str) -> None:
-    """Погасить старую карточку: убрать кнопки и фото, оставить короткую пометку."""
-    try:
-        await event.edit(text=marker, attachments=[])
-    except Exception:
-        pass
 
 
 async def _show_next(me_id, send) -> None:
@@ -124,17 +116,15 @@ async def on_like(event: MessageCallback) -> None:
     me_id = event.callback.user.user_id
     target_id = event.callback.payload.split(":", 2)[2]
     matched, partner = await _register_like(event, me_id, target_id)
-    await _drop_buttons(event, "💚 Лайк отправлен")
     await _after_swipe(event, me_id, matched, partner)
 
 
 @router.message_callback(F.callback.payload.startswith(kb.FEED_SKIP + ":"))
 async def on_skip(event: MessageCallback) -> None:
-    await event.answer()
+    await event.answer(notification="👎")
     me_id = event.callback.user.user_id
     target_id = event.callback.payload.split(":", 2)[2]
     await repo.save_swipe(me_id, target_id, liked=False)
-    await _drop_buttons(event, "👎 Пропущено")
     await _show_next(me_id, event.message.answer)
 
 
@@ -144,7 +134,7 @@ async def on_like_with_message(event: MessageCallback, context: BaseContext) -> 
     target_id = event.callback.payload.split(":", 2)[2]
     await context.update_data(feed_target=target_id)
     await context.set_state(FeedFlow.writing_message)
-    await _drop_buttons(event, ASK_MESSAGE)  # гасим карточку и просим текст
+    await event.message.answer(text=ASK_MESSAGE)  # карточка остаётся, просто просим текст
 
 
 @router.message_created(FeedFlow.writing_message, F.message.body.text)
