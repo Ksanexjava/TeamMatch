@@ -17,6 +17,7 @@ from bot import media
 from bot import texts
 from bot.states import FeedFlow
 from core.interactions import is_match, matches_for
+from core.moderation import has_ads, is_clean
 from core.recommendations import build_feed, explain
 from db import repo
 
@@ -151,6 +152,13 @@ async def on_like_with_message(event: MessageCallback, context: BaseContext) -> 
 async def on_feed_message(event: MessageCreated, context: BaseContext) -> None:
     body = event.message.body
     message = (body.text or "").strip() if body else ""
+    # Сообщение уйдёт другому человеку — мат и рекламу не пропускаем, ждём новый текст
+    if not is_clean(message):
+        await event.message.answer(texts.BANNED_WORDS)
+        return
+    if has_ads(message):
+        await event.message.answer(texts.NO_LINKS_MESSAGE)
+        return
     data = await context.get_data()
     target_id = data.get("feed_target")
     me_id = event.message.sender.user_id
