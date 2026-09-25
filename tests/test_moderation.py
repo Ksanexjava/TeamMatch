@@ -62,12 +62,13 @@ def test_good_passes(text):
 
 ADS = [
     "https://casino.ru", "заходи на vk.com/mygroup", "t.me/channel", "www.example", "site.ru",
-    "site . ru", "site точка ру", "site(dot)com", "подписывайтесь @superchannel",
-    "пиши на ivan@mail.ru", "mysite.online", "tg://resolve", "http :// x",
+    "site . ru", "site точка ру", "site(dot)com",
+    "mysite.online", "tg://resolve", "http :// x",
 ]
 NO_ADS = [
     "Люблю Python. So I code", "ASP.NET и Socket.IO", "Node.js, Vue.js", "НГТУ. Работаю с 2024",
     "C# / .NET", "Файл main.py, deploy.sh", "Т. к. я backend", "Python, ML, аналитика",
+    "Пиши в ТГ @ivan_petrov", "vk: @id12345", "почта ivan@mail.ru",
 ]
 
 
@@ -99,12 +100,15 @@ def test_normalize_github(text, expected):
     assert normalize_github(text) == expected
 
 
-@pytest.mark.parametrize("text", ["@ivan_petrov", "ivan_petrov", "+7 913 123-45-67", "89131234567", "ivan@mail.ru"])
+@pytest.mark.parametrize("text", [
+    "@ivan_petrov", "ivan_petrov", "+7 913 123-45-67", "89131234567", "ivan@mail.ru",
+    "ТГ: @ivan, VK: @ivan", "Иван", "пиши в личку @ivan или на ivan@mail.ru",
+])
 def test_contact_ok(text):
     assert is_valid_contact(text)
 
 
-@pytest.mark.parametrize("text", ["t.me/ivan", "https://t.me/ivan", "vk.com/ivan", "ivan.ru", "мой сайт"])
+@pytest.mark.parametrize("text", ["t.me/ivan", "https://t.me/ivan", "vk.com/ivan", "ivan.ru", "мой сайт ivan точка ру"])
 def test_contact_rejected(text):
     assert not is_valid_contact(text)
 

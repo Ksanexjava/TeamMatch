@@ -23,7 +23,10 @@ class Profile(Base):
     user_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     name: Mapped[str] = mapped_column(String(100))
     university: Mapped[str] = mapped_column(String(100), default="")
+    # Уровень образования: бакалавриат / магистратура / специалитет / специалитет (медицина) / ординатура
+    degree: Mapped[str] = mapped_column(String(40), default="")
     course: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    direction: Mapped[str] = mapped_column(String(100), default="")   # направление подготовки
     city: Mapped[str] = mapped_column(String(100), default="")
     role: Mapped[str] = mapped_column(String(50))
     looking_for: Mapped[str] = mapped_column(String(50))
@@ -49,7 +52,9 @@ class Profile(Base):
             "username": self.username,
             "name": self.name,
             "university": self.university,
+            "degree": self.degree,
             "course": self.course,
+            "direction": self.direction,
             "city": self.city,
             "role": self.role,
             "looking_for": self.looking_for,

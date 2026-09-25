@@ -1,7 +1,7 @@
 # bot/handlers/profile.py
 # Анкета: пошаговое заполнение, просмотр, скрытие и удаление (зона Романа).
 #
-# Шаги: имя → вуз → курс → город → роль → цель → интересы → о себе → GitHub → контакт → подтверждение.
+# Шаги: имя → фото → вуз → уровень образования → курс → направление → город → роль → цель → интересы → о себе → GitHub → контакт → подтверждение.
 # Пока анкета не подтверждена, ответы лежат в context (FSM), в базу пишем только на шаге «Сохранить».
 
 from maxapi import F
@@ -22,7 +22,10 @@ from db import repo
 
 router = Router(router_id="profile")
 
-LIMITS = {"name": 50, "university": 100, "city": 60, "about": 500, "github": 200, "username": 100}
+LIMITS = {
+    "name": 50, "university": 100, "course": 2, "direction": 100, "city": 60,
+    "about": 500, "github": 200, "username": 100,
+}
 
 
 def _text(event: MessageCreated) -> str:
@@ -111,8 +114,31 @@ async def step_university(event: MessageCreated, context: BaseContext) -> None:
     if value is None:
         return
     await context.update_data(university=value)
-    await context.set_state(ProfileForm.course)
-    await event.message.answer(text=texts.ASK_COURSE, attachments=kb.course_kb())
+    await context.set_state(ProfileForm.degree)
+    await event.message.answer(text=texts.ASK_DEGREE, attachments=kb.degree_kb())
+
+
+@router.message_created(ProfileForm.course_manual, F.message.body.text)
+async def step_course_manual(event: MessageCreated, context: BaseContext) -> None:
+    """Медики вводят курс сами (специалитет — до 6 лет, ординатура — свой счёт)."""
+    value = await _take_text(event, "course")
+    if value is None:
+        return
+    if not value.isdigit() or not 1 <= int(value) <= 10:
+        await event.message.answer(texts.BAD_COURSE)
+        return
+    await context.update_data(course=int(value))
+    await _ask_direction(event.message.answer, context)
+
+
+@router.message_created(ProfileForm.direction, F.message.body.text)
+async def step_direction(event: MessageCreated, context: BaseContext) -> None:
+    value = await _take_text(event, "direction")
+    if value is None:
+        return
+    await context.update_data(direction=value)
+    await context.set_state(ProfileForm.city)
+    await event.message.answer(texts.ASK_CITY)
 
 
 @router.message_created(ProfileForm.city, F.message.body.text)
@@ -173,13 +199,38 @@ async def step_contact(event: MessageCreated, context: BaseContext) -> None:
 # ── Шаги с кнопками ──────────────────────────────────────────────────────────
 
 
+@router.message_callback(ProfileForm.degree, F.callback.payload == kb.DEGREE_OTHER)
+async def step_degree_other(event: MessageCallback, context: BaseContext) -> None:
+    """«Другое» — считаем, что это медик: спрашиваем специалитет или ординатуру."""
+    await event.answer()
+    await context.set_state(ProfileForm.degree_med)
+    await event.message.answer(text=texts.ASK_DEGREE_MED, attachments=kb.degree_med_kb())
+
+
+@router.message_callback(ProfileForm.degree, F.callback.payload.startswith("degree:"))
+async def step_degree(event: MessageCallback, context: BaseContext) -> None:
+    label, value, max_courses = kb.DEGREES[int(event.callback.payload.split(":", 1)[1])]
+    await event.answer(notification=label)
+    await context.update_data(degree=value)
+    await context.set_state(ProfileForm.course)
+    await event.message.answer(text=texts.ASK_COURSE, attachments=kb.course_kb(max_courses))
+
+
+@router.message_callback(ProfileForm.degree_med, F.callback.payload.startswith("degmed:"))
+async def step_degree_med(event: MessageCallback, context: BaseContext) -> None:
+    label, value, _ = kb.MED_DEGREES[int(event.callback.payload.split(":", 1)[1])]
+    await event.answer(notification=label)
+    await context.update_data(degree=value)
+    await context.set_state(ProfileForm.course_manual)
+    await event.message.answer(texts.ASK_COURSE_MANUAL)
+
+
 @router.message_callback(ProfileForm.course, F.callback.payload.startswith("course:"))
 async def step_course(event: MessageCallback, context: BaseContext) -> None:
     course = int(event.callback.payload.split(":", 1)[1])
     await event.answer()
     await context.update_data(course=course)
-    await context.set_state(ProfileForm.city)
-    await event.message.answer(texts.ASK_CITY)
+    await _ask_direction(event.message.answer, context)
 
 
 @router.message_callback(ProfileForm.role, F.callback.payload.startswith("role:"))
@@ -202,16 +253,12 @@ async def step_looking_for(event: MessageCallback, context: BaseContext) -> None
 
 @router.message_callback(F.callback.payload == kb.SKIP)
 async def step_skip(event: MessageCallback, context: BaseContext) -> None:
-    """«Пропустить» на необязательных шагах: курс, о себе, GitHub."""
+    """«Пропустить» на необязательных шагах: фото, о себе, GitHub."""
     await event.answer()
     state = str(await context.get_state())
     if state == str(ProfileForm.photo):
         await context.update_data(photo="")
         await _ask_university(event.message.answer, context)
-    elif state == str(ProfileForm.course):
-        await context.update_data(course=None)
-        await context.set_state(ProfileForm.city)
-        await event.message.answer(texts.ASK_CITY)
     elif state == str(ProfileForm.about):
         await context.update_data(about="")
         await _ask_github(event.message.answer, context)
@@ -250,6 +297,11 @@ async def step_restart(event: MessageCallback, context: BaseContext) -> None:
 async def _ask_university(answer, context: BaseContext) -> None:
     await context.set_state(ProfileForm.university)
     await answer(text=texts.ASK_UNIVERSITY)
+
+
+async def _ask_direction(answer, context: BaseContext) -> None:
+    await context.set_state(ProfileForm.direction)
+    await answer(text=texts.ASK_DIRECTION)
 
 
 async def _ask_github(answer, context: BaseContext) -> None:
