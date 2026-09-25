@@ -42,7 +42,7 @@ def _card(item: dict) -> str:
 
 def _match_text(partner: dict) -> str:
     """Сообщение о мэтче с карточкой собеседника и его контактом."""
-    return "🎉 У вас мэтч!\n\n" + texts.profile_card(partner, show_contact=True)
+    return "🎉 У тебя новый мэтч!\n\n" + texts.profile_card(partner, show_contact=True)
 
 
 async def _send_to(event, user_id: str, text: str, attachments=None) -> None:
