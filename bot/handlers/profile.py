@@ -17,6 +17,7 @@ from bot import media
 from bot import texts
 from bot.states import ProfileForm
 from core.interests import LOOKING_FOR_OPTIONS, normalize_interests
+from core.moderation import has_ads, is_clean, is_valid_contact, normalize_github
 from db import repo
 
 router = Router(router_id="profile")
@@ -30,7 +31,12 @@ def _text(event: MessageCreated) -> str:
 
 
 async def _take_text(event: MessageCreated, field: str) -> str | None:
-    """Достаёт текст из сообщения и проверяет длину. None — если нужно спросить ещё раз."""
+    """Достаёт текст из сообщения и проверяет его. None — если нужно спросить ещё раз.
+
+    Проверки: не пусто, не длиннее лимита, без мата/оскорблений/экстремизма (core/moderation),
+    без рекламы. Ссылка разрешена только на GitHub и только в поле github; в поле контакта —
+    только ник, телефон или e-mail.
+    """
     value = _text(event)
     if not value:
         await event.message.answer(texts.EMPTY_TEXT)
@@ -38,6 +44,23 @@ async def _take_text(event: MessageCreated, field: str) -> str | None:
     limit = LIMITS.get(field, 200)
     if len(value) > limit:
         await event.message.answer(texts.TOO_LONG.format(limit=limit))
+        return None
+    if not is_clean(value):
+        await event.message.answer(texts.BANNED_WORDS)
+        return None
+    if field == "github":
+        github = normalize_github(value)
+        if github is None:
+            await event.message.answer(text=texts.BAD_GITHUB, attachments=kb.skip_kb())
+            return None
+        return github
+    if field == "username":
+        if not is_valid_contact(value):
+            await event.message.answer(texts.BAD_CONTACT)
+            return None
+        return value
+    if has_ads(value):
+        await event.message.answer(texts.NO_LINKS)
         return None
     return value
 
@@ -104,7 +127,14 @@ async def step_city(event: MessageCreated, context: BaseContext) -> None:
 
 @router.message_created(ProfileForm.interests, F.message.body.text)
 async def step_interests(event: MessageCreated, context: BaseContext) -> None:
-    interests = normalize_interests(_text(event))
+    raw = _text(event)
+    if not is_clean(raw):
+        await event.message.answer(texts.BANNED_WORDS)
+        return
+    if has_ads(raw):
+        await event.message.answer(texts.NO_LINKS)
+        return
+    interests = normalize_interests(raw)
     if not interests:
         await event.message.answer(texts.NO_INTERESTS)
         return
