@@ -24,6 +24,12 @@ from db import repo
 router = Router(router_id="feed")
 
 FEED_EMPTY = "На сегодня подходящие анкеты закончились 👀 Загляни позже — появятся новые."
+FEED_EMPTY_AGAIN = (
+    "Новые анкеты закончились 👀\n\n"
+    "Ты пропустил(а) анкет: {skipped}. Можно пройтись по ним ещё раз — вдруг кто-то теперь "
+    "подойдёт. Лайкнутых повторно не покажу: если они ответят взаимностью, придёт мэтч."
+)
+FEED_AGAIN_START = "🔄 Показываю пропущенные анкеты заново."
 ASK_MESSAGE = "Напиши короткое сообщение — человек увидит его, если лайкнет в ответ:"
 NO_MATCHES = "Пока мэтчей нет. Полайкай анкеты в «Искать сокомандников» 🙂"
 LIKED_NUDGE = "Кто-то оценил твою анкету 👀 Загляни в «Искать сокомандников» — вдруг взаимно!"
@@ -68,7 +74,12 @@ async def _show_next(me_id, send) -> None:
     swiped = await repo.get_swiped_ids(me_id)
     feed = build_feed(me, pool, swiped)
     if not feed:
-        await send(text=FEED_EMPTY, attachments=kb.main_menu_kb())
+        # Анкеты кончились. Если что-то пропускали — предлагаем пройтись по кругу ещё раз.
+        skipped = await repo.count_skips(me_id)
+        if skipped:
+            await send(text=FEED_EMPTY_AGAIN.format(skipped=skipped), attachments=kb.feed_empty_kb())
+        else:
+            await send(text=FEED_EMPTY, attachments=kb.main_menu_kb())
         return
     profile = feed[0]["profile"]
     await send(text=_card(feed[0]), attachments=media.with_photo(profile, kb.feed_card_kb(profile["user_id"])))
@@ -119,6 +130,19 @@ async def _after_swipe(event, me_id, matched: bool, partner: dict | None) -> Non
 async def on_feed(event: MessageCallback) -> None:
     await event.answer()
     await _show_next(event.callback.user.user_id, event.message.answer)
+
+
+@router.message_callback(F.callback.payload == kb.FEED_AGAIN)
+async def on_feed_again(event: MessageCallback) -> None:
+    """«Посмотреть пропущенные снова»: забываем пропуски и начинаем ленту заново."""
+    await event.answer()
+    me_id = event.callback.user.user_id
+    await repo.reset_skips(me_id)
+    try:
+        await event.edit(text=FEED_AGAIN_START, attachments=[])   # убираем кнопки со старого сообщения
+    except Exception:
+        pass
+    await _show_next(me_id, event.message.answer)
 
 
 @router.message_callback(F.callback.payload.startswith(kb.FEED_LIKE + ":"))
