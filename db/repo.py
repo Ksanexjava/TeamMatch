@@ -36,7 +36,7 @@ async def save_profile(user_id: str | int, data: dict) -> dict:
     interests должны быть уже нормализованы (core/interests.py).
     """
     allowed = {
-        "name", "university", "course", "city", "role", "looking_for",
+        "name", "university", "degree", "course", "direction", "city", "role", "looking_for",
         "interests", "about", "github", "username", "photo",
     }
     clean = {k: v for k, v in data.items() if k in allowed}

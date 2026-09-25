@@ -14,9 +14,9 @@
 #      «похуй» и «заебал», но не «страхует», «небо», «хачапури», «жидкость», «Нигерия».
 #   4. Плюс точные слова из data/banwords.txt — команда может дописывать туда свои.
 #
-# Реклама: в текстовых полях ссылки запрещены совсем (включая «site точка ru», t.me,
-# @каналы). Единственная разрешённая ссылка — GitHub, и только в поле GitHub
-# (см. normalize_github).
+# Реклама: в текстовых полях ссылки запрещены совсем (включая «site точка ru», t.me).
+# @ники (@username) разрешены — так выглядят контакты в VK и Telegram.
+# Единственная разрешённая ссылка — GitHub, и только в поле GitHub (см. normalize_github).
 #
 # Фильтр не идеален (и не должен быть): цель — отсечь очевидный мусор в MVP.
 
@@ -269,19 +269,23 @@ _URL_RE = re.compile(
     rf"|[\w-]+\s*[(\[]?\s*(?:точка|тчк|dot)\s*[)\]]?\s*(?:{_TLDS}|ру|ком|нет|орг|ми)\b",  # site точка ru
     re.IGNORECASE,
 )
-# Упоминание канала/аккаунта: @channel (e-mail вида a@b.ru ловится как ссылка выше)
-_MENTION_RE = re.compile(r"(?<![\w.])@[a-zA-Z0-9_]{3,}")
+# E-mail — это не сайт: ivan@mail.ru не считаем ссылкой
+_EMAIL_ANY_RE = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 
 
 def has_link(text: str) -> bool:
-    """Есть ли в тексте ссылка / домен (в т.ч. замаскированный «site точка ru»)."""
-    cleaned = _TECH_NAMES.sub(" ", text or "")
+    """Есть ли в тексте ссылка на сайт / домен (в т.ч. замаскированный «site точка ru»).
+
+    E-mail и @ники ссылками не считаются.
+    """
+    cleaned = _EMAIL_ANY_RE.sub(" ", text or "")
+    cleaned = _TECH_NAMES.sub(" ", cleaned)
     return bool(_URL_RE.search(cleaned))
 
 
 def has_ads(text: str) -> bool:
-    """Ссылка или @упоминание — для полей, где контактам и рекламе не место."""
-    return has_link(text) or bool(_MENTION_RE.search(text or ""))
+    """Реклама = ссылка или домен. @ники (@username) рекламой не считаем — это контакты VK/TG."""
+    return has_link(text)
 
 
 # ── GitHub ───────────────────────────────────────────────────────────────────
@@ -310,20 +314,7 @@ def normalize_github(text: str) -> str | None:
 
 # ── Контакт ──────────────────────────────────────────────────────────────────
 
-_CONTACT_RE = re.compile(
-    r"^(?:@[a-zA-Z0-9_.]{3,64}"                          # @ник
-    r"|\+?[\d\s()\-]{7,20}"                              # телефон
-    r"|[\w.+-]+@[\w-]+(?:\.[\w-]+)+"                     # e-mail
-    r"|[a-zA-Z0-9_.]{3,64})$"                            # ник без @
-)
-
-
-_EMAIL_RE = re.compile(r"^[\w.+-]+@[\w-]+(?:\.[\w-]+)+$")
-
 
 def is_valid_contact(text: str) -> bool:
-    """Контакт: @ник (MAX/Telegram), ник без @, телефон или e-mail. Ссылки нельзя."""
-    value = (text or "").strip()
-    if _EMAIL_RE.match(value):
-        return True
-    return bool(_CONTACT_RE.match(value)) and not has_link(value)
+    """Контакт — любой текст без ссылок на сайты: @ник, «ТГ: @ivan, VK: @ivan», телефон, e-mail."""
+    return not has_link(text)

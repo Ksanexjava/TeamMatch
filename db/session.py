@@ -50,7 +50,9 @@ async def seed_test_profiles() -> None:
                     user_id=str(item["user_id"]),
                     name=item.get("name", ""),
                     university=item.get("university", ""),
+                    degree=item.get("degree", "бакалавриат"),   # у тестовых анкет курсы 1–4
                     course=item.get("course"),
+                    direction=item.get("direction", ""),
                     city=item.get("city", ""),
                     role=item.get("role", ""),
                     looking_for=item.get("looking_for", ""),

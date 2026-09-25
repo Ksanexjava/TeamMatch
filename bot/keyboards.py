@@ -10,7 +10,19 @@ from core.interests import LOOKING_FOR_OPTIONS
 # Роли совпадают с ролями в тестовых анкетах Миши (tools/generate_test_profiles.py),
 # иначе «разные роли» в матчинге будут считаться неправильно.
 ROLES = ["разработка", "ML", "аналитика", "дизайн", "маркетинг", "финансы", "питчинг", "менеджмент"]
-COURSES = ["1", "2", "3", "4", "5", "6"]
+# Уровни образования: (подпись на кнопке, что храним в базе, сколько курсов).
+# max_courses = None → курс пользователь вводит сам (медики).
+DEGREES = [
+    ("Бакалавриат", "бакалавриат", 4),
+    ("Магистратура", "магистратура", 2),
+    ("Специалитет", "специалитет", 5),
+]
+DEGREE_OTHER = "degree:other"
+# «Другое» → медицинское образование
+MED_DEGREES = [
+    ("Специалитет (медицина)", "специалитет (медицина)", None),
+    ("Ординатура", "ординатура", None),
+]
 
 # ── payload-константы ────────────────────────────────────────────────────────
 CONSENT_YES = "consent:yes"
@@ -114,10 +126,27 @@ def delete_confirm_kb() -> list:
     return _markup(kb)
 
 
-def course_kb() -> list:
+def degree_kb() -> list:
+    """Уровень образования. В payload — номер варианта из DEGREES."""
     kb = InlineKeyboardBuilder()
-    kb.row(*[CallbackButton(text=c, payload=f"course:{c}") for c in COURSES])
-    kb.row(CallbackButton(text="Не студент / другое", payload=SKIP))
+    for i, (label, _, _) in enumerate(DEGREES):
+        kb.row(CallbackButton(text=label, payload=f"degree:{i}"))
+    kb.row(CallbackButton(text="Другое (медицина)", payload=DEGREE_OTHER))
+    return _markup(kb)
+
+
+def degree_med_kb() -> list:
+    """Для «Другое»: специалитет или ординатура. В payload — номер варианта из MED_DEGREES."""
+    kb = InlineKeyboardBuilder()
+    for i, (label, _, _) in enumerate(MED_DEGREES):
+        kb.row(CallbackButton(text=label, payload=f"degmed:{i}"))
+    return _markup(kb)
+
+
+def course_kb(max_courses: int) -> list:
+    """Кнопки курсов от 1 до max_courses (бакалавриат — 4, магистратура — 2, специалитет — 5)."""
+    kb = InlineKeyboardBuilder()
+    kb.row(*[CallbackButton(text=str(c), payload=f"course:{c}") for c in range(1, max_courses + 1)])
     return _markup(kb)
 
 

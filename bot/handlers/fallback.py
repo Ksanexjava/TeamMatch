@@ -12,7 +12,10 @@ from bot.states import ProfileForm
 
 router = Router(router_id="fallback")
 
-BUTTON_STEPS = {str(ProfileForm.course), str(ProfileForm.role), str(ProfileForm.looking_for), str(ProfileForm.confirm)}
+BUTTON_STEPS = {
+    str(ProfileForm.degree), str(ProfileForm.degree_med), str(ProfileForm.course),
+    str(ProfileForm.role), str(ProfileForm.looking_for), str(ProfileForm.confirm),
+}
 
 
 @router.message_created()
