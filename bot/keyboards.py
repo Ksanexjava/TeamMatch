@@ -31,7 +31,10 @@ CONSENT_NO = "consent:no"
 MENU_FEED = "menu:feed"          # лента — зона Миши (bot/handlers/feed.py)
 MENU_MATCHES = "menu:matches"    # мои мэтчи — зона Миши
 MENU_PROFILE = "menu:profile"
-MENU_EDIT = "menu:edit"
+MENU_EDIT = "menu:edit"              # заполнить анкету заново
+MENU_EDIT_FIELDS = "menu:edit_fields"  # редактировать отдельные поля
+MENU_REPORT = "menu:report"          # пожаловаться
+EDIT_FIELD = "edit"                  # + ":<поле>", см. EDIT_FIELDS
 MENU_HIDE = "menu:hide"
 MENU_SHOW = "menu:show"
 MENU_DELETE = "menu:delete"
@@ -69,6 +72,7 @@ def main_menu_kb() -> list:
         CallbackButton(text="🤝 Мои мэтчи", payload=MENU_MATCHES),
         CallbackButton(text="👤 Моя анкета", payload=MENU_PROFILE),
     )
+    kb.row(CallbackButton(text="⚠️ Пожаловаться", payload=MENU_REPORT))
     return _markup(kb)
 
 
@@ -109,13 +113,37 @@ def after_match_kb() -> list:
 
 def profile_kb(is_active: bool) -> list:
     kb = InlineKeyboardBuilder()
-    kb.row(CallbackButton(text="✏️ Заполнить заново", payload=MENU_EDIT))
+    kb.row(CallbackButton(text="✏️ Редактировать анкету", payload=MENU_EDIT_FIELDS))
+    kb.row(CallbackButton(text="🔄 Заполнить заново", payload=MENU_EDIT))
     if is_active:
         kb.row(CallbackButton(text="🙈 Скрыть анкету из поиска", payload=MENU_HIDE))
     else:
         kb.row(CallbackButton(text="👀 Снова показывать в поиске", payload=MENU_SHOW))
     kb.row(CallbackButton(text="🗑 Удалить мои данные", payload=MENU_DELETE))
     kb.row(CallbackButton(text="← В меню", payload=MENU_BACK))
+    return _markup(kb)
+
+
+# Поля для точечного редактирования: (ключ, подпись на кнопке)
+EDIT_FIELDS = [
+    ("name", "Имя"), ("photo", "Фото"),
+    ("university", "Вуз"), ("education", "Уровень и курс"),
+    ("direction", "Направление"), ("city", "Город"),
+    ("role", "Роль"), ("looking_for", "Что ищу"),
+    ("interests", "Интересы"), ("about", "О себе"),
+    ("github", "GitHub"), ("contact", "Контакт"),
+]
+
+
+def edit_fields_kb() -> list:
+    """Выбор поля для редактирования — по две кнопки в ряд."""
+    kb = InlineKeyboardBuilder()
+    for i in range(0, len(EDIT_FIELDS), 2):
+        kb.row(*[
+            CallbackButton(text=label, payload=f"{EDIT_FIELD}:{key}")
+            for key, label in EDIT_FIELDS[i:i + 2]
+        ])
+    kb.row(CallbackButton(text="← Назад к анкете", payload=MENU_PROFILE))
     return _markup(kb)
 
 
