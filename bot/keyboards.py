@@ -30,6 +30,7 @@ MENU_BACK = "menu:back"
 FEED_LIKE = "feed:like"   # лайкнуть
 FEED_MSG = "feed:msg"     # лайкнуть с сообщением
 FEED_SKIP = "feed:skip"   # пропустить
+FEED_AGAIN = "feed:again" # лента закончилась → показать пропущенные анкеты снова
 
 SKIP = "form:skip"
 USE_MY_USERNAME = "form:use_username"
@@ -67,6 +68,14 @@ def feed_card_kb(candidate_id: str) -> list:
         CallbackButton(text="💬 Лайк + сообщение", payload=f"{FEED_MSG}:{candidate_id}"),
     )
     kb.row(CallbackButton(text="👎 Пропустить", payload=f"{FEED_SKIP}:{candidate_id}"))
+    kb.row(CallbackButton(text="← В меню", payload=MENU_BACK))
+    return _markup(kb)
+
+
+def feed_empty_kb() -> list:
+    """Лента закончилась, но есть пропущенные анкеты: пройтись по ним ещё раз или в меню."""
+    kb = InlineKeyboardBuilder()
+    kb.row(CallbackButton(text="🔄 Посмотреть пропущенные снова", payload=FEED_AGAIN))
     kb.row(CallbackButton(text="← В меню", payload=MENU_BACK))
     return _markup(kb)
 

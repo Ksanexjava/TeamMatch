@@ -11,7 +11,7 @@
 
 from datetime import datetime, timezone
 
-from sqlalchemy import or_, select
+from sqlalchemy import delete, func, or_, select
 
 from db.models import Profile, Swipe
 from db.session import Session
@@ -108,6 +108,24 @@ async def get_swiped_ids(user_id: str | int) -> set[str]:
     async with Session() as session:
         rows = await session.scalars(select(Swipe.to_id).where(Swipe.from_id == str(user_id)))
         return set(rows)
+
+
+async def count_skips(user_id: str | int) -> int:
+    """Сколько анкет пользователь пропустил (дизлайкнул)."""
+    async with Session() as session:
+        return await session.scalar(
+            select(func.count()).select_from(Swipe).where(Swipe.from_id == str(user_id), Swipe.liked.is_(False))
+        ) or 0
+
+
+async def reset_skips(user_id: str | int) -> None:
+    """Забыть пропуски пользователя — пропущенные анкеты снова появятся в его ленте.
+
+    Лайки не трогаем: лайкнутых повторно не показываем, их ответ (мэтч) ещё может прийти.
+    """
+    async with Session() as session:
+        await session.execute(delete(Swipe).where(Swipe.from_id == str(user_id), Swipe.liked.is_(False)))
+        await session.commit()
 
 
 async def get_likes_involving(user_id: str | int) -> list[dict]:
