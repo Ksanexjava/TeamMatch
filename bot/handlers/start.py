@@ -69,6 +69,17 @@ async def on_consent_no(event: MessageCallback, context: BaseContext) -> None:
     await event.edit(text=texts.CONSENT_DECLINED, attachments=[])
 
 
+@router.message_callback(F.callback.payload == kb.MENU_REPORT)
+async def on_report(event: MessageCallback) -> None:
+    """«Пожаловаться» — пока просто показываем почту для жалоб."""
+    await event.edit(text=texts.REPORT, attachments=kb.back_kb())
+
+
+@router.message_created(Command("report"))
+async def cmd_report(event: MessageCreated) -> None:
+    await event.message.answer(text=texts.REPORT, attachments=kb.back_kb())
+
+
 @router.message_callback(F.callback.payload == kb.MENU_BACK)
 async def on_menu_back(event: MessageCallback) -> None:
     await event.edit(text=texts.MAIN_MENU, attachments=kb.main_menu_kb())

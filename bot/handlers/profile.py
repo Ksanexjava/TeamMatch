@@ -85,8 +85,7 @@ async def step_name(event: MessageCreated, context: BaseContext) -> None:
     if value is None:
         return
     await context.update_data(name=value)
-    await context.set_state(ProfileForm.photo)
-    await event.message.answer(text=texts.ASK_PHOTO, attachments=kb.skip_kb())
+    await _advance(event.message.answer, context, "name", lambda: _ask_photo(event.message.answer, context))
 
 
 @router.message_created(ProfileForm.photo, F.message.body.attachments)
@@ -97,7 +96,7 @@ async def step_photo(event: MessageCreated, context: BaseContext) -> None:
     first = attachments[0] if attachments else None
     if isinstance(first, Image) and first.payload and first.payload.token:
         await context.update_data(photo=first.payload.token)
-        await _ask_university(event.message.answer, context)
+        await _advance(event.message.answer, context, "photo", lambda: _ask_university(event.message.answer, context))
     else:
         await event.message.answer(texts.NO_PHOTO_HINT)
 
@@ -114,8 +113,7 @@ async def step_university(event: MessageCreated, context: BaseContext) -> None:
     if value is None:
         return
     await context.update_data(university=value)
-    await context.set_state(ProfileForm.degree)
-    await event.message.answer(text=texts.ASK_DEGREE, attachments=kb.degree_kb())
+    await _advance(event.message.answer, context, "university", lambda: _ask_degree(event.message.answer, context))
 
 
 @router.message_created(ProfileForm.course_manual, F.message.body.text)
@@ -128,7 +126,7 @@ async def step_course_manual(event: MessageCreated, context: BaseContext) -> Non
         await event.message.answer(texts.BAD_COURSE)
         return
     await context.update_data(course=int(value))
-    await _ask_direction(event.message.answer, context)
+    await _advance(event.message.answer, context, "course", lambda: _ask_direction(event.message.answer, context))
 
 
 @router.message_created(ProfileForm.direction, F.message.body.text)
@@ -137,8 +135,7 @@ async def step_direction(event: MessageCreated, context: BaseContext) -> None:
     if value is None:
         return
     await context.update_data(direction=value)
-    await context.set_state(ProfileForm.city)
-    await event.message.answer(texts.ASK_CITY)
+    await _advance(event.message.answer, context, "direction", lambda: _ask_city(event.message.answer, context))
 
 
 @router.message_created(ProfileForm.city, F.message.body.text)
@@ -147,8 +144,7 @@ async def step_city(event: MessageCreated, context: BaseContext) -> None:
     if value is None:
         return
     await context.update_data(city=value)
-    await context.set_state(ProfileForm.role)
-    await event.message.answer(text=texts.ASK_ROLE, attachments=kb.role_kb())
+    await _advance(event.message.answer, context, "city", lambda: _ask_role(event.message.answer, context))
 
 
 @router.message_created(ProfileForm.interests, F.message.body.text)
@@ -165,8 +161,7 @@ async def step_interests(event: MessageCreated, context: BaseContext) -> None:
         await event.message.answer(texts.NO_INTERESTS)
         return
     await context.update_data(interests=interests)
-    await context.set_state(ProfileForm.about)
-    await event.message.answer(text=texts.ASK_ABOUT, attachments=kb.skip_kb())
+    await _advance(event.message.answer, context, "interests", lambda: _ask_about(event.message.answer, context))
 
 
 @router.message_created(ProfileForm.about, F.message.body.text)
@@ -175,7 +170,7 @@ async def step_about(event: MessageCreated, context: BaseContext) -> None:
     if value is None:
         return
     await context.update_data(about=value)
-    await _ask_github(event.message.answer, context)
+    await _advance(event.message.answer, context, "about", lambda: _ask_github(event.message.answer, context))
 
 
 @router.message_created(ProfileForm.github, F.message.body.text)
@@ -184,7 +179,7 @@ async def step_github(event: MessageCreated, context: BaseContext) -> None:
     if value is None:
         return
     await context.update_data(github=value)
-    await _ask_contact(event.message.answer, context)
+    await _advance(event.message.answer, context, "github", lambda: _ask_contact(event.message.answer, context))
 
 
 @router.message_created(ProfileForm.contact, F.message.body.text)
@@ -193,7 +188,7 @@ async def step_contact(event: MessageCreated, context: BaseContext) -> None:
     if value is None:
         return
     await context.update_data(username=value)
-    await _show_confirm(event.message.answer, context)
+    await _advance(event.message.answer, context, "username", lambda: _show_confirm(event.message.answer, context))
 
 
 # ── Шаги с кнопками ──────────────────────────────────────────────────────────
@@ -230,7 +225,7 @@ async def step_course(event: MessageCallback, context: BaseContext) -> None:
     course = int(event.callback.payload.split(":", 1)[1])
     await event.answer()
     await context.update_data(course=course)
-    await _ask_direction(event.message.answer, context)
+    await _advance(event.message.answer, context, "course", lambda: _ask_direction(event.message.answer, context))
 
 
 @router.message_callback(ProfileForm.role, F.callback.payload.startswith("role:"))
@@ -238,8 +233,7 @@ async def step_role(event: MessageCallback, context: BaseContext) -> None:
     index = int(event.callback.payload.split(":", 1)[1])
     await event.answer(notification=f"Роль: {kb.ROLES[index]}")
     await context.update_data(role=kb.ROLES[index])
-    await context.set_state(ProfileForm.looking_for)
-    await event.message.answer(text=texts.ASK_LOOKING_FOR, attachments=kb.looking_for_kb())
+    await _advance(event.message.answer, context, "role", lambda: _ask_looking_for(event.message.answer, context))
 
 
 @router.message_callback(ProfileForm.looking_for, F.callback.payload.startswith("goal:"))
@@ -247,8 +241,7 @@ async def step_looking_for(event: MessageCallback, context: BaseContext) -> None
     index = int(event.callback.payload.split(":", 1)[1])
     await event.answer(notification=f"Ищешь: {LOOKING_FOR_OPTIONS[index]}")
     await context.update_data(looking_for=LOOKING_FOR_OPTIONS[index])
-    await context.set_state(ProfileForm.interests)
-    await event.message.answer(texts.ASK_INTERESTS)
+    await _advance(event.message.answer, context, "looking_for", lambda: _ask_interests(event.message.answer, context))
 
 
 @router.message_callback(F.callback.payload == kb.SKIP)
@@ -256,15 +249,16 @@ async def step_skip(event: MessageCallback, context: BaseContext) -> None:
     """«Пропустить» на необязательных шагах: фото, о себе, GitHub."""
     await event.answer()
     state = str(await context.get_state())
+    answer = event.message.answer
     if state == str(ProfileForm.photo):
         await context.update_data(photo="")
-        await _ask_university(event.message.answer, context)
+        await _advance(answer, context, "photo", lambda: _ask_university(answer, context))
     elif state == str(ProfileForm.about):
         await context.update_data(about="")
-        await _ask_github(event.message.answer, context)
+        await _advance(answer, context, "about", lambda: _ask_github(answer, context))
     elif state == str(ProfileForm.github):
         await context.update_data(github="")
-        await _ask_contact(event.message.answer, context)
+        await _advance(answer, context, "github", lambda: _ask_contact(answer, context))
 
 
 @router.message_callback(ProfileForm.contact, F.callback.payload == kb.USE_MY_USERNAME)
@@ -272,7 +266,7 @@ async def step_contact_username(event: MessageCallback, context: BaseContext) ->
     await event.answer()
     data = await context.get_data()
     await context.update_data(username="@" + data.get("max_username", ""))
-    await _show_confirm(event.message.answer, context)
+    await _advance(event.message.answer, context, "username", lambda: _show_confirm(event.message.answer, context))
 
 
 @router.message_callback(ProfileForm.confirm, F.callback.payload == kb.CONFIRM_SAVE)
@@ -292,6 +286,64 @@ async def step_restart(event: MessageCallback, context: BaseContext) -> None:
 
 
 # ── Переходы между шагами ────────────────────────────────────────────────────
+
+
+async def _advance(answer, context: BaseContext, done_field: str, next_step) -> None:
+    """Перейти к следующему шагу — или, если это точечное редактирование, сохранить и выйти.
+
+    В режиме редактирования в context лежат edit_user_id и edit_last — поле, на котором
+    редактирование заканчивается (для «Образования» это direction: уровень → курс → направление).
+    """
+    data = await context.get_data()
+    if data.get("edit_last") != done_field:
+        await next_step()
+        return
+    user_id = data["edit_user_id"]
+    await repo.save_profile(user_id, data)
+    await context.clear()
+    text, attachments = await _profile_screen(user_id)
+    profile = await repo.get_profile(user_id)
+    await answer(text=f"{texts.EDIT_SAVED}\n\n{text}", attachments=media.with_photo(profile, attachments))
+
+
+async def _ask_photo(answer, context: BaseContext) -> None:
+    await context.set_state(ProfileForm.photo)
+    await answer(text=texts.ASK_PHOTO, attachments=kb.skip_kb())
+
+
+async def _ask_degree(answer, context: BaseContext) -> None:
+    await context.set_state(ProfileForm.degree)
+    await answer(text=texts.ASK_DEGREE, attachments=kb.degree_kb())
+
+
+async def _ask_city(answer, context: BaseContext) -> None:
+    await context.set_state(ProfileForm.city)
+    await answer(texts.ASK_CITY)
+
+
+async def _ask_role(answer, context: BaseContext) -> None:
+    await context.set_state(ProfileForm.role)
+    await answer(text=texts.ASK_ROLE, attachments=kb.role_kb())
+
+
+async def _ask_looking_for(answer, context: BaseContext) -> None:
+    await context.set_state(ProfileForm.looking_for)
+    await answer(text=texts.ASK_LOOKING_FOR, attachments=kb.looking_for_kb())
+
+
+async def _ask_interests(answer, context: BaseContext) -> None:
+    await context.set_state(ProfileForm.interests)
+    await answer(texts.ASK_INTERESTS)
+
+
+async def _ask_about(answer, context: BaseContext) -> None:
+    await context.set_state(ProfileForm.about)
+    await answer(text=texts.ASK_ABOUT, attachments=kb.skip_kb())
+
+
+async def _ask_name(answer, context: BaseContext) -> None:
+    await context.set_state(ProfileForm.name)
+    await answer(text=texts.ASK_NAME)
 
 
 async def _ask_university(answer, context: BaseContext) -> None:
@@ -352,6 +404,58 @@ async def on_edit(event: MessageCallback, context: BaseContext) -> None:
     await event.answer()
     user = event.callback.user
     await start_form(event.message.answer, context, max_username=user.username, first_name=user.first_name)
+
+
+# ── Точечное редактирование ──────────────────────────────────────────────────
+
+# Что редактируем: первый шаг и поле, после которого сохраняем.
+# «Образование» проходит уровень → курс → направление и сохраняется после направления.
+EDIT_STEPS = {
+    "name": (_ask_name, "name"),
+    "photo": (_ask_photo, "photo"),
+    "university": (_ask_university, "university"),
+    "education": (_ask_degree, "direction"),
+    "direction": (_ask_direction, "direction"),
+    "city": (_ask_city, "city"),
+    "role": (_ask_role, "role"),
+    "looking_for": (_ask_looking_for, "looking_for"),
+    "interests": (_ask_interests, "interests"),
+    "about": (_ask_about, "about"),
+    "github": (_ask_github, "github"),
+    "contact": (_ask_contact, "username"),
+}
+
+
+@router.message_callback(F.callback.payload == kb.MENU_EDIT_FIELDS)
+async def on_edit_fields(event: MessageCallback, context: BaseContext) -> None:
+    """«Редактировать анкету» — список полей, которые можно поменять по одному."""
+    await context.clear()
+    await event.edit(text=texts.EDIT_CHOOSE, attachments=kb.edit_fields_kb())
+
+
+@router.message_callback(F.callback.payload.startswith(kb.EDIT_FIELD + ":"))
+async def on_edit_field(event: MessageCallback, context: BaseContext) -> None:
+    """Выбрали поле: подгружаем текущую анкету в context и задаём один вопрос."""
+    key = event.callback.payload.split(":", 1)[1]
+    if key not in EDIT_STEPS:
+        await event.answer()
+        return
+    user = event.callback.user
+    profile = await repo.get_profile(user.user_id)
+    if profile is None:
+        await event.edit(text=texts.NO_PROFILE, attachments=[])
+        return
+    await event.answer()
+    ask, last = EDIT_STEPS[key]
+    await context.clear()
+    await context.update_data(
+        **profile, max_username=user.username or "", edit_user_id=user.user_id, edit_last=last
+    )
+    try:
+        await event.edit(text=texts.EDIT_CHOOSE, attachments=[])   # убираем кнопки со списка
+    except Exception:
+        pass
+    await ask(event.message.answer, context)
 
 
 @router.message_callback(F.callback.payload == kb.MENU_HIDE)
