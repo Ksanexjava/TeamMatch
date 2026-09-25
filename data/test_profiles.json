@@ -1,0 +1,662 @@
+[
+  {
+    "user_id": "u001",
+    "username": "@user001",
+    "name": "Вика",
+    "university": "НГАУ",
+    "course": 1,
+    "city": "Новосибирск",
+    "role": "ML",
+    "looking_for": "хакатон",
+    "interests": [
+      "ml",
+      "python",
+      "аналитика"
+    ],
+    "github": "https://github.com/user001"
+  },
+  {
+    "user_id": "u002",
+    "username": "@user002",
+    "name": "Рома",
+    "university": "СибГУТИ",
+    "course": 1,
+    "city": "Новосибирск",
+    "role": "дизайн",
+    "looking_for": "стартап",
+    "interests": [
+      "figma",
+      "ui",
+      "выступления",
+      "дизайн"
+    ],
+    "github": ""
+  },
+  {
+    "user_id": "u003",
+    "username": "@user003",
+    "name": "Миша",
+    "university": "НГТУ НЭТИ",
+    "course": 1,
+    "city": "Новосибирск",
+    "role": "финансы",
+    "looking_for": "хакатон",
+    "interests": [
+      "excel",
+      "финансы",
+      "экономика"
+    ],
+    "github": ""
+  },
+  {
+    "user_id": "u004",
+    "username": "@user004",
+    "name": "Юля",
+    "university": "НГТУ НЭТИ",
+    "course": 4,
+    "city": "Новосибирск",
+    "role": "финансы",
+    "looking_for": "олимпиада",
+    "interests": [
+      "excel",
+      "модели",
+      "финансы"
+    ],
+    "github": ""
+  },
+  {
+    "user_id": "u005",
+    "username": "@user005",
+    "name": "Вика",
+    "university": "СГУПС",
+    "course": 1,
+    "city": "Новосибирск",
+    "role": "финансы",
+    "looking_for": "олимпиада",
+    "interests": [
+      "excel",
+      "ui",
+      "модели",
+      "экономика"
+    ],
+    "github": ""
+  },
+  {
+    "user_id": "u006",
+    "username": "@user006",
+    "name": "Вера",
+    "university": "НГУЭУ",
+    "course": 2,
+    "city": "Новосибирск",
+    "role": "менеджмент",
+    "looking_for": "стартап",
+    "interests": [
+      "agile",
+      "команда",
+      "маркетинг",
+      "планирование"
+    ],
+    "github": ""
+  },
+  {
+    "user_id": "u007",
+    "username": "@user007",
+    "name": "Паша",
+    "university": "НГУ",
+    "course": 2,
+    "city": "Новосибирск",
+    "role": "питчинг",
+    "looking_for": "олимпиада",
+    "interests": [
+      "питч",
+      "презентации",
+      "сторителлинг"
+    ],
+    "github": ""
+  },
+  {
+    "user_id": "u008",
+    "username": "@user008",
+    "name": "Артём",
+    "university": "НГПУ",
+    "course": 2,
+    "city": "Новосибирск",
+    "role": "питчинг",
+    "looking_for": "стартап",
+    "interests": [
+      "питч",
+      "презентации",
+      "сторителлинг"
+    ],
+    "github": ""
+  },
+  {
+    "user_id": "u009",
+    "username": "@user009",
+    "name": "Полина",
+    "university": "НГАУ",
+    "course": 3,
+    "city": "Новосибирск",
+    "role": "менеджмент",
+    "looking_for": "кейс-чемпионат",
+    "interests": [
+      "бренд",
+      "команда",
+      "менеджмент",
+      "планирование"
+    ],
+    "github": ""
+  },
+  {
+    "user_id": "u010",
+    "username": "@user010",
+    "name": "Вера",
+    "university": "НГТУ НЭТИ",
+    "course": 4,
+    "city": "Новосибирск",
+    "role": "менеджмент",
+    "looking_for": "стартап",
+    "interests": [
+      "agile",
+      "sql",
+      "менеджмент",
+      "продукт"
+    ],
+    "github": ""
+  },
+  {
+    "user_id": "u011",
+    "username": "@user011",
+    "name": "Зоя",
+    "university": "НГМУ",
+    "course": 3,
+    "city": "Новосибирск",
+    "role": "маркетинг",
+    "looking_for": "хакатон",
+    "interests": [
+      "бренд",
+      "контент",
+      "маркетинг"
+    ],
+    "github": ""
+  },
+  {
+    "user_id": "u012",
+    "username": "@user012",
+    "name": "Никита",
+    "university": "НГУЭУ",
+    "course": 1,
+    "city": "Новосибирск",
+    "role": "маркетинг",
+    "looking_for": "кейс-чемпионат",
+    "interests": [
+      "smm",
+      "бренд",
+      "реклама"
+    ],
+    "github": ""
+  },
+  {
+    "user_id": "u013",
+    "username": "@user013",
+    "name": "Федя",
+    "university": "НГМУ",
+    "course": 1,
+    "city": "Академгородок",
+    "role": "аналитика",
+    "looking_for": "олимпиада",
+    "interests": [
+      "excel",
+      "данные",
+      "статистика"
+    ],
+    "github": ""
+  },
+  {
+    "user_id": "u014",
+    "username": "@user014",
+    "name": "Паша",
+    "university": "СибГУТИ",
+    "course": 2,
+    "city": "Новосибирск",
+    "role": "менеджмент",
+    "looking_for": "кейс-чемпионат",
+    "interests": [
+      "менеджмент",
+      "планирование",
+      "продукт"
+    ],
+    "github": ""
+  },
+  {
+    "user_id": "u015",
+    "username": "@user015",
+    "name": "Юля",
+    "university": "НГУЭУ",
+    "course": 2,
+    "city": "Новосибирск",
+    "role": "ML",
+    "looking_for": "кейс-чемпионат",
+    "interests": [
+      "ml",
+      "аналитика",
+      "нейросети"
+    ],
+    "github": "https://github.com/user015"
+  },
+  {
+    "user_id": "u016",
+    "username": "@user016",
+    "name": "Никита",
+    "university": "СГУПС",
+    "course": 3,
+    "city": "Новосибирск",
+    "role": "маркетинг",
+    "looking_for": "олимпиада",
+    "interests": [
+      "бренд",
+      "маркетинг",
+      "реклама"
+    ],
+    "github": ""
+  },
+  {
+    "user_id": "u017",
+    "username": "@user017",
+    "name": "Анна",
+    "university": "НГМУ",
+    "course": 2,
+    "city": "Академгородок",
+    "role": "менеджмент",
+    "looking_for": "кейс-чемпионат",
+    "interests": [
+      "agile",
+      "python",
+      "менеджмент",
+      "продукт"
+    ],
+    "github": ""
+  },
+  {
+    "user_id": "u018",
+    "username": "@user018",
+    "name": "Вика",
+    "university": "НГМУ",
+    "course": 2,
+    "city": "Новосибирск",
+    "role": "разработка",
+    "looking_for": "стартап",
+    "interests": [
+      "api",
+      "git",
+      "python",
+      "базы данных"
+    ],
+    "github": "https://github.com/user018"
+  },
+  {
+    "user_id": "u019",
+    "username": "@user019",
+    "name": "Артём",
+    "university": "СГУГиТ",
+    "course": 2,
+    "city": "Новосибирск",
+    "role": "дизайн",
+    "looking_for": "стартап",
+    "interests": [
+      "figma",
+      "ui",
+      "иллюстрация"
+    ],
+    "github": ""
+  },
+  {
+    "user_id": "u020",
+    "username": "@user020",
+    "name": "Рома",
+    "university": "НГУ",
+    "course": 1,
+    "city": "Новосибирск",
+    "role": "дизайн",
+    "looking_for": "стартап",
+    "interests": [
+      "ui",
+      "дизайн",
+      "иллюстрация",
+      "питч"
+    ],
+    "github": ""
+  },
+  {
+    "user_id": "u021",
+    "username": "@user021",
+    "name": "Полина",
+    "university": "НГУЭУ",
+    "course": 3,
+    "city": "Новосибирск",
+    "role": "финансы",
+    "looking_for": "кейс-чемпионат",
+    "interests": [
+      "модели",
+      "планирование",
+      "финансы",
+      "экономика"
+    ],
+    "github": ""
+  },
+  {
+    "user_id": "u022",
+    "username": "@user022",
+    "name": "Юля",
+    "university": "НГУ",
+    "course": 1,
+    "city": "Новосибирск",
+    "role": "ML",
+    "looking_for": "кейс-чемпионат",
+    "interests": [
+      "ml",
+      "аналитика",
+      "нейросети"
+    ],
+    "github": "https://github.com/user022"
+  },
+  {
+    "user_id": "u023",
+    "username": "@user023",
+    "name": "Тоня",
+    "university": "НГУ",
+    "course": 2,
+    "city": "Новосибирск",
+    "role": "питчинг",
+    "looking_for": "хакатон",
+    "interests": [
+      "выступления",
+      "питч",
+      "презентации"
+    ],
+    "github": ""
+  },
+  {
+    "user_id": "u024",
+    "username": "@user024",
+    "name": "Женя",
+    "university": "СибГУТИ",
+    "course": 2,
+    "city": "Новосибирск",
+    "role": "питчинг",
+    "looking_for": "хакатон",
+    "interests": [
+      "выступления",
+      "питч",
+      "планирование",
+      "сторителлинг"
+    ],
+    "github": ""
+  },
+  {
+    "user_id": "u025",
+    "username": "@user025",
+    "name": "Тимур",
+    "university": "НГТУ НЭТИ",
+    "course": 2,
+    "city": "Новосибирск",
+    "role": "финансы",
+    "looking_for": "хакатон",
+    "interests": [
+      "excel",
+      "аналитика",
+      "модели",
+      "финансы"
+    ],
+    "github": ""
+  },
+  {
+    "user_id": "u026",
+    "username": "@user026",
+    "name": "Вика",
+    "university": "НГАУ",
+    "course": 3,
+    "city": "Новосибирск",
+    "role": "дизайн",
+    "looking_for": "кейс-чемпионат",
+    "interests": [
+      "ui",
+      "базы данных",
+      "дизайн",
+      "прототипы"
+    ],
+    "github": ""
+  },
+  {
+    "user_id": "u027",
+    "username": "@user027",
+    "name": "Миша",
+    "university": "НГТУ НЭТИ",
+    "course": 1,
+    "city": "Новосибирск",
+    "role": "финансы",
+    "looking_for": "хакатон",
+    "interests": [
+      "excel",
+      "модели",
+      "реклама",
+      "экономика"
+    ],
+    "github": ""
+  },
+  {
+    "user_id": "u028",
+    "username": "@user028",
+    "name": "Тоня",
+    "university": "СГУПС",
+    "course": 3,
+    "city": "Новосибирск",
+    "role": "ML",
+    "looking_for": "кейс-чемпионат",
+    "interests": [
+      "python",
+      "аналитика",
+      "данные",
+      "финансы"
+    ],
+    "github": "https://github.com/user028"
+  },
+  {
+    "user_id": "u029",
+    "username": "@user029",
+    "name": "Оля",
+    "university": "НГМУ",
+    "course": 1,
+    "city": "Бердск",
+    "role": "менеджмент",
+    "looking_for": "олимпиада",
+    "interests": [
+      "agile",
+      "команда",
+      "продукт"
+    ],
+    "github": ""
+  },
+  {
+    "user_id": "u030",
+    "username": "@user030",
+    "name": "Марина",
+    "university": "НГМУ",
+    "course": 2,
+    "city": "Новосибирск",
+    "role": "ML",
+    "looking_for": "олимпиада",
+    "interests": [
+      "ml",
+      "python",
+      "данные"
+    ],
+    "github": "https://github.com/user030"
+  },
+  {
+    "user_id": "u031",
+    "username": "@user031",
+    "name": "Катя",
+    "university": "НГМУ",
+    "course": 4,
+    "city": "Новосибирск",
+    "role": "дизайн",
+    "looking_for": "хакатон",
+    "interests": [
+      "figma",
+      "ui",
+      "иллюстрация"
+    ],
+    "github": ""
+  },
+  {
+    "user_id": "u032",
+    "username": "@user032",
+    "name": "Егор",
+    "university": "СГУГиТ",
+    "course": 4,
+    "city": "Бердск",
+    "role": "ML",
+    "looking_for": "хакатон",
+    "interests": [
+      "excel",
+      "ml",
+      "python",
+      "нейросети"
+    ],
+    "github": "https://github.com/user032"
+  },
+  {
+    "user_id": "u033",
+    "username": "@user033",
+    "name": "Юля",
+    "university": "НГУЭУ",
+    "course": 4,
+    "city": "Новосибирск",
+    "role": "ML",
+    "looking_for": "хакатон",
+    "interests": [
+      "ml",
+      "python",
+      "данные",
+      "модели"
+    ],
+    "github": "https://github.com/user033"
+  },
+  {
+    "user_id": "u034",
+    "username": "@user034",
+    "name": "Настя",
+    "university": "НГМУ",
+    "course": 4,
+    "city": "Академгородок",
+    "role": "маркетинг",
+    "looking_for": "кейс-чемпионат",
+    "interests": [
+      "smm",
+      "дизайн",
+      "контент",
+      "маркетинг"
+    ],
+    "github": ""
+  },
+  {
+    "user_id": "u035",
+    "username": "@user035",
+    "name": "Оля",
+    "university": "СГУПС",
+    "course": 3,
+    "city": "Новосибирск",
+    "role": "дизайн",
+    "looking_for": "хакатон",
+    "interests": [
+      "figma",
+      "иллюстрация",
+      "инвестиции",
+      "прототипы"
+    ],
+    "github": ""
+  },
+  {
+    "user_id": "u036",
+    "username": "@user036",
+    "name": "Лена",
+    "university": "СГУПС",
+    "course": 2,
+    "city": "Новосибирск",
+    "role": "питчинг",
+    "looking_for": "кейс-чемпионат",
+    "interests": [
+      "выступления",
+      "команда",
+      "питч",
+      "презентации"
+    ],
+    "github": ""
+  },
+  {
+    "user_id": "u037",
+    "username": "@user037",
+    "name": "Катя",
+    "university": "НГПУ",
+    "course": 4,
+    "city": "Бердск",
+    "role": "питчинг",
+    "looking_for": "олимпиада",
+    "interests": [
+      "выступления",
+      "презентации",
+      "сторителлинг"
+    ],
+    "github": ""
+  },
+  {
+    "user_id": "u038",
+    "username": "@user038",
+    "name": "Катя",
+    "university": "НГУ",
+    "course": 1,
+    "city": "Академгородок",
+    "role": "разработка",
+    "looking_for": "стартап",
+    "interests": [
+      "api",
+      "python",
+      "базы данных"
+    ],
+    "github": "https://github.com/user038"
+  },
+  {
+    "user_id": "u039",
+    "username": "@user039",
+    "name": "Глеб",
+    "university": "НГАУ",
+    "course": 2,
+    "city": "Новосибирск",
+    "role": "финансы",
+    "looking_for": "хакатон",
+    "interests": [
+      "excel",
+      "инвестиции",
+      "модели"
+    ],
+    "github": ""
+  },
+  {
+    "user_id": "u040",
+    "username": "@user040",
+    "name": "Вера",
+    "university": "НГПУ",
+    "course": 1,
+    "city": "Новосибирск",
+    "role": "питчинг",
+    "looking_for": "олимпиада",
+    "interests": [
+      "python",
+      "питч",
+      "презентации",
+      "сторителлинг"
+    ],
+    "github": ""
+  }
+]

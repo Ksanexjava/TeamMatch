@@ -1,0 +1,27 @@
+# секреты
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+
+# IDE и ОС
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# локальные данные
+*.log
+*.sqlite3
+
+# локальная база SQLite при запуске без Docker
+local.db
