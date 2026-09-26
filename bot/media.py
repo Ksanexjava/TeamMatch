@@ -1,7 +1,4 @@
-# bot/media.py
-# Показ фото профиля: превращает сохранённый токен в вложение MAX.
-# Фото пользователь присылает в анкете, мы храним его token (db/models.py: Profile.photo)
-# и здесь собираем из него готовое вложение для отправки в карточке.
+# media.py
 
 from maxapi.enums.upload_type import UploadType
 from maxapi.types.attachments.upload import AttachmentPayload, AttachmentUpload
