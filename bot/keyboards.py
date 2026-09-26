@@ -7,45 +7,42 @@ from maxapi.utils.inline_keyboard import InlineKeyboardBuilder
 
 from core.interests import LOOKING_FOR_OPTIONS
 
-# Роли совпадают с ролями в тестовых анкетах Миши (tools/generate_test_profiles.py),
-# иначе «разные роли» в матчинге будут считаться неправильно.
 ROLES = ["разработка", "ML", "аналитика", "дизайн", "маркетинг", "финансы", "питчинг", "менеджмент"]
-# Уровни образования: (подпись на кнопке, что храним в базе, сколько курсов).
-# max_courses = None → курс пользователь вводит сам (медики).
+
 DEGREES = [
     ("Бакалавриат", "бакалавриат", 4),
     ("Магистратура", "магистратура", 2),
     ("Специалитет", "специалитет", 5),
 ]
 DEGREE_OTHER = "degree:other"
-# «Другое» → медицинское образование
+
 MED_DEGREES = [
     ("Специалитет (медицина)", "специалитет (медицина)", None),
     ("Ординатура", "ординатура", None),
 ]
 
-# ── payload-константы ────────────────────────────────────────────────────────
+
 CONSENT_YES = "consent:yes"
 CONSENT_NO = "consent:no"
 
-MENU_FEED = "menu:feed"          # лента — зона Миши (bot/handlers/feed.py)
-MENU_MATCHES = "menu:matches"    # мои мэтчи — зона Миши
+MENU_FEED = "menu:feed"        
+MENU_MATCHES = "menu:matches"  
 MENU_PROFILE = "menu:profile"
 MENU_EDIT = "menu:edit"              # заполнить анкету заново
 MENU_EDIT_FIELDS = "menu:edit_fields"  # редактировать отдельные поля
 MENU_REPORT = "menu:report"          # пожаловаться
-EDIT_FIELD = "edit"                  # + ":<поле>", см. EDIT_FIELDS
+EDIT_FIELD = "edit"               
 MENU_HIDE = "menu:hide"
 MENU_SHOW = "menu:show"
 MENU_DELETE = "menu:delete"
 MENU_DELETE_CONFIRM = "menu:delete_confirm"
 MENU_BACK = "menu:back"
 
-# Кнопки ленты (зона Миши). К payload добавляется ":<user_id>" конкретной анкеты.
+
 FEED_LIKE = "feed:like"   # лайкнуть
 FEED_MSG = "feed:msg"     # лайкнуть с сообщением
 FEED_SKIP = "feed:skip"   # пропустить
-FEED_AGAIN = "feed:again" # лента закончилась → показать пропущенные анкеты снова
+FEED_AGAIN = "feed:again" # лента закончилась
 
 SKIP = "form:skip"
 USE_MY_USERNAME = "form:use_username"
@@ -124,7 +121,7 @@ def profile_kb(is_active: bool) -> list:
     return _markup(kb)
 
 
-# Поля для точечного редактирования: (ключ, подпись на кнопке)
+
 EDIT_FIELDS = [
     ("name", "Имя"), ("photo", "Фото"),
     ("university", "Вуз"), ("education", "Уровень и курс"),
@@ -180,7 +177,7 @@ def course_kb(max_courses: int) -> list:
 
 def role_kb() -> list:
     kb = InlineKeyboardBuilder()
-    # по две кнопки в ряд; в payload — номер роли, чтобы не зависеть от текста
+  
     for i in range(0, len(ROLES), 2):
         kb.row(*[CallbackButton(text=ROLES[j], payload=f"role:{j}") for j in range(i, min(i + 2, len(ROLES)))])
     return _markup(kb)
@@ -201,7 +198,7 @@ def skip_kb() -> list:
 
 def contact_kb(username: str | None) -> list:
     if not username:
-        return []  # пустую клавиатуру не отправляем
+        return [] 
     kb = InlineKeyboardBuilder()
     kb.row(CallbackButton(text=f"Использовать @{username}", payload=USE_MY_USERNAME))
     return _markup(kb)
