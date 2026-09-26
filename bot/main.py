@@ -1,7 +1,3 @@
-# bot/main.py
-# Точка входа: python -m bot.main
-# Готовит базу, подключает обработчики и запускает бота (long polling — HTTPS и домен не нужны).
-
 import asyncio
 import logging
 
