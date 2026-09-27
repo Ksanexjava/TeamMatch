@@ -54,6 +54,8 @@ SEARCH_MODES = [
     ("city", "Только мой город"),
 ]
 
+NUDGE_DISMISS = "nudge:dismiss"  # «Не сейчас» на уведомлении «тебя оценили»
+
 SKIP = "form:skip"
 USE_MY_USERNAME = "form:use_username"
 CONFIRM_SAVE = "form:save"
@@ -135,6 +137,14 @@ def after_match_kb() -> list:
     kb = InlineKeyboardBuilder()
     kb.row(CallbackButton(text="🔍 Смотреть дальше", payload=MENU_FEED))
     kb.row(CallbackButton(text="← В меню", payload=MENU_BACK))
+    return _markup(kb)
+
+
+def liked_nudge_kb() -> list:
+    """Кнопки под уведомлением «тебя оценили»: сразу в ленту или отложить (зона Миши)."""
+    kb = InlineKeyboardBuilder()
+    kb.row(CallbackButton(text="👀 Посмотреть анкеты", payload=MENU_FEED))
+    kb.row(CallbackButton(text="Не сейчас", payload=NUDGE_DISMISS))
     return _markup(kb)
 
 

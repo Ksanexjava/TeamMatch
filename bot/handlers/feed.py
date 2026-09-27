@@ -143,14 +143,15 @@ async def _register_like(event, me_id, target_id: str, message: str = "") -> tup
 
     if matched:
         # Собеседнику бот пишет сам (даже если он не в чате) — карточка с моим фото и контактом.
+        # К уведомлению крепим меню, чтобы человек мог сразу листать ленту или уйти в меню.
         me = await repo.get_profile(me_id) or {}
         note = _match_text(me)
         if message:
             note += f"\n\n💬 Сообщение: {message}"
-        await _send_to(event, target_id, note, media.with_photo(me, []))
+        await _send_to(event, target_id, note, media.with_photo(me, kb.after_match_kb()))
     elif partner and not partner.get("is_test"):
-        # Ещё не мэтч, но человек реальный — мягко подсказываем заглянуть в ленту.
-        await _send_to(event, target_id, LIKED_NUDGE)
+        # Ещё не мэтч, но человек реальный — уведомление с кнопками «посмотреть / не сейчас».
+        await _send_to(event, target_id, LIKED_NUDGE, kb.liked_nudge_kb())
 
     return matched, partner
 
@@ -208,6 +209,16 @@ async def on_set_search_mode(event: MessageCallback) -> None:
     _set_mode(event.callback.user.user_id, mode)
     await event.answer(notification=f"Поиск: {SEARCH_LABELS[mode]}")
     await event.edit(text=SETTINGS_TEXT, attachments=kb.search_settings_kb(mode))
+
+
+@router.message_callback(F.callback.payload == kb.NUDGE_DISMISS)
+async def on_nudge_dismiss(event: MessageCallback) -> None:
+    """«Не сейчас» на уведомлении «тебя оценили» — просто убираем кнопки."""
+    await event.answer()
+    try:
+        await event.edit(text=LIKED_NUDGE, attachments=[])
+    except Exception:
+        pass
 
 
 @router.message_callback(F.callback.payload.startswith(kb.FEED_LIKE + ":"))
