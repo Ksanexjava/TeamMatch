@@ -34,6 +34,20 @@ ASK_MESSAGE = "Напиши короткое сообщение — челове
 NO_MATCHES = "Пока мэтчей нет. Полайкай анкеты в «Искать сокомандников» 🙂"
 LIKED_NUDGE = "Кто-то оценил твою анкету 👀 Загляни в «Искать сокомандников» — вдруг взаимно!"
 
+SETTINGS_TEXT = (
+    "⚙️ Настройки поиска\n\n"
+    "Кого показывать в ленте:\n"
+    "• Все подходящие — по совместимости, без ограничений\n"
+    "• Только мой вуз — люди из твоего вуза\n"
+    "• Только мой город — люди из твоего города\n\n"
+    "Текущий вариант отмечен ✅."
+)
+EMPTY_BY_FILTER = (
+    "По фильтру «{label}» подходящих анкет пока нет 👀\n"
+    "Можно сменить настройки поиска — показать всех или выбрать другой фильтр."
+)
+SEARCH_LABELS = {"all": "все подходящие", "university": "только мой вуз", "city": "только мой город"}
+
 
 def _card(item: dict) -> str:
     """Карточка кандидата + строка «почему подходит»."""
@@ -64,16 +78,45 @@ async def _keep_info(event, profile) -> None:
         pass
 
 
+# Режим поиска на пользователя: "all" | "university" | "city". Храним в памяти процесса —
+# на перезапуске бота сбрасывается на «все». Для MVP этого хватает, схему БД не трогаем.
+_search_mode: dict[str, str] = {}
+
+
+def _get_mode(user_id) -> str:
+    return _search_mode.get(str(user_id), "all")
+
+
+def _set_mode(user_id, mode: str) -> None:
+    _search_mode[str(user_id)] = mode
+
+
+def _filter_pool(me: dict, pool: list, mode: str) -> list:
+    """Оставить в ленте только анкеты того же вуза/города (для 'all' — не фильтруем)."""
+    if mode == "university":
+        key = (me.get("university") or "").strip().lower()
+        return [p for p in pool if key and (p.get("university") or "").strip().lower() == key]
+    if mode == "city":
+        key = (me.get("city") or "").strip().lower()
+        return [p for p in pool if key and (p.get("city") or "").strip().lower() == key]
+    return pool
+
+
 async def _show_next(me_id, send) -> None:
     """Прислать НОВЫМ сообщением следующую анкету из ленты (с фото, если есть)."""
     me = await repo.get_profile(me_id)
     if me is None:
         await send(text=texts.NO_PROFILE)
         return
-    pool = await repo.list_active_profiles()
+    mode = _get_mode(me_id)
+    pool = _filter_pool(me, await repo.list_active_profiles(), mode)
     swiped = await repo.get_swiped_ids(me_id)
     feed = build_feed(me, pool, swiped)
     if not feed:
+        if mode != "all":
+            # Пусто из-за фильтра — подсказываем сменить настройки поиска.
+            await send(text=EMPTY_BY_FILTER.format(label=SEARCH_LABELS[mode]), attachments=kb.settings_hint_kb())
+            return
         # Анкеты кончились. Если что-то пропускали — предлагаем пройтись по кругу ещё раз.
         skipped = await repo.count_skips(me_id)
         if skipped:
@@ -143,6 +186,28 @@ async def on_feed_again(event: MessageCallback) -> None:
     except Exception:
         pass
     await _show_next(me_id, event.message.answer)
+
+
+# ── Настройки поиска ──────────────────────────────────────────────────────────
+
+
+@router.message_callback(F.callback.payload == kb.MENU_SETTINGS)
+async def on_settings(event: MessageCallback) -> None:
+    """Экран настроек поиска: показать текущий режим ленты."""
+    await event.answer()
+    mode = _get_mode(event.callback.user.user_id)
+    await event.edit(text=SETTINGS_TEXT, attachments=kb.search_settings_kb(mode))
+
+
+@router.message_callback(F.callback.payload.startswith(kb.SEARCH_MODE + ":"))
+async def on_set_search_mode(event: MessageCallback) -> None:
+    """Пользователь выбрал режим поиска — запоминаем и обновляем экран настроек."""
+    mode = event.callback.payload.split(":", 2)[2]
+    if mode not in SEARCH_LABELS:
+        mode = "all"
+    _set_mode(event.callback.user.user_id, mode)
+    await event.answer(notification=f"Поиск: {SEARCH_LABELS[mode]}")
+    await event.edit(text=SETTINGS_TEXT, attachments=kb.search_settings_kb(mode))
 
 
 @router.message_callback(F.callback.payload.startswith(kb.FEED_LIKE + ":"))

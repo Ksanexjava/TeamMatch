@@ -37,6 +37,7 @@ MENU_HIDE = "menu:hide"
 MENU_SHOW = "menu:show"
 MENU_DELETE = "menu:delete"
 MENU_DELETE_CONFIRM = "menu:delete_confirm"
+MENU_SETTINGS = "menu:settings"   # настройки поиска — зона Миши
 MENU_BACK = "menu:back"
 
 
@@ -44,6 +45,14 @@ FEED_LIKE = "feed:like"   # лайкнуть
 FEED_MSG = "feed:msg"     # лайкнуть с сообщением
 FEED_SKIP = "feed:skip"   # пропустить
 FEED_AGAIN = "feed:again" # лента закончилась
+
+# Режимы ленты. Полный payload — SEARCH_MODE + ":" + режим, например "search:mode:city".
+SEARCH_MODE = "search:mode"
+SEARCH_MODES = [
+    ("all", "Все подходящие"),
+    ("university", "Только мой вуз"),
+    ("city", "Только мой город"),
+]
 
 SKIP = "form:skip"
 USE_MY_USERNAME = "form:use_username"
@@ -70,6 +79,7 @@ def main_menu_kb() -> list:
         CallbackButton(text="🤝 Мои мэтчи", payload=MENU_MATCHES),
         CallbackButton(text="👤 Моя анкета", payload=MENU_PROFILE),
     )
+    kb.row(CallbackButton(text="⚙️ Настройки поиска", payload=MENU_SETTINGS))
     kb.row(CallbackButton(text="⚠️ Пожаловаться", payload=MENU_REPORT))
     return _markup(kb)
 
@@ -90,6 +100,25 @@ def feed_empty_kb() -> list:
     """Лента закончилась, но есть пропущенные анкеты: пройтись по ним ещё раз или в меню."""
     kb = InlineKeyboardBuilder()
     kb.row(CallbackButton(text="🔄 Посмотреть пропущенные снова", payload=FEED_AGAIN))
+    kb.row(CallbackButton(text="← В меню", payload=MENU_BACK))
+    return _markup(kb)
+
+
+def search_settings_kb(current: str) -> list:
+    """Экран настроек поиска: три режима ленты, активный помечен ✅ (зона Миши)."""
+    kb = InlineKeyboardBuilder()
+    for mode, label in SEARCH_MODES:
+        mark = "✅ " if current == mode else ""
+        kb.row(CallbackButton(text=f"{mark}{label}", payload=f"{SEARCH_MODE}:{mode}"))
+    kb.row(CallbackButton(text="🔍 Открыть ленту", payload=MENU_FEED))
+    kb.row(CallbackButton(text="← В меню", payload=MENU_BACK))
+    return _markup(kb)
+
+
+def settings_hint_kb() -> list:
+    """Лента пуста из-за фильтра: перейти в настройки поиска или в меню (зона Миши)."""
+    kb = InlineKeyboardBuilder()
+    kb.row(CallbackButton(text="⚙️ Настройки поиска", payload=MENU_SETTINGS))
     kb.row(CallbackButton(text="← В меню", payload=MENU_BACK))
     return _markup(kb)
 
