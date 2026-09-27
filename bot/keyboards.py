@@ -28,6 +28,7 @@ CONSENT_NO = "consent:no"
 MENU_FEED = "menu:feed"        
 MENU_MATCHES = "menu:matches"  
 MENU_PROFILE = "menu:profile"
+MENU_START = "menu:start"            # начать заново (после удаления данных)
 MENU_EDIT = "menu:edit"              # заполнить анкету заново
 MENU_EDIT_FIELDS = "menu:edit_fields"  # редактировать отдельные поля
 MENU_REPORT = "menu:report"          # пожаловаться
@@ -148,6 +149,13 @@ def delete_confirm_kb() -> list:
     kb = InlineKeyboardBuilder()
     kb.row(CallbackButton(text="Да, удалить всё", payload=MENU_DELETE_CONFIRM))
     kb.row(CallbackButton(text="Отмена", payload=MENU_PROFILE))
+    return _markup(kb)
+
+
+def start_again_kb() -> list:
+    """После удаления данных — кнопка вернуться (вместо ручного /start)."""
+    kb = InlineKeyboardBuilder()
+    kb.row(CallbackButton(text="🚀 Начать заново", payload=MENU_START))
     return _markup(kb)
 
 
