@@ -80,6 +80,18 @@ async def cmd_report(event: MessageCreated) -> None:
     await event.message.answer(text=texts.REPORT, attachments=kb.back_kb())
 
 
+@router.message_callback(F.callback.payload == kb.MENU_START)
+async def on_menu_start(event: MessageCallback, context: BaseContext) -> None:
+    """Кнопка «Начать заново» (после удаления данных) — то же, что /start."""
+    await event.answer()
+    await context.clear()
+    try:
+        await event.edit(text=texts.DELETED, attachments=[])  # убираем кнопку, чтобы не нажать дважды
+    except Exception:
+        pass
+    await _greet(event.callback.user.user_id, event.message.answer)
+
+
 @router.message_callback(F.callback.payload == kb.MENU_BACK)
 async def on_menu_back(event: MessageCallback) -> None:
     await event.edit(text=texts.MAIN_MENU, attachments=kb.main_menu_kb())

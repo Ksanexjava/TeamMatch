@@ -479,4 +479,4 @@ async def on_delete(event: MessageCallback) -> None:
 async def on_delete_confirm(event: MessageCallback, context: BaseContext) -> None:
     await repo.delete_profile(event.callback.user.user_id)
     await context.clear()
-    await event.edit(text=texts.DELETED, attachments=[])
+    await event.edit(text=texts.DELETED, attachments=kb.start_again_kb())
