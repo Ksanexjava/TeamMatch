@@ -4,8 +4,8 @@
 from core.interests import normalize_interests, normalize_one
 
 
-def test_lowercase_and_trim():
-    assert normalize_interests("  Python , ML ") == ["python", "ml"]
+def test_case_kept_and_trim():
+    assert normalize_interests("  Python , ML , Цифровой  прорыв ") == ["Python", "ML", "Цифровой прорыв"]
 
 
 def test_synonyms():
