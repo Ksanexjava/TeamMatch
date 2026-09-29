@@ -1,5 +1,4 @@
 # db/session.py
-# Подключение к базе и первичная подготовка: создание таблиц и загрузка тестовых анкет.
 
 import json
 import logging
@@ -18,7 +17,6 @@ Session = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession
 
 TEST_PROFILES_PATH = Path(__file__).resolve().parent.parent / "data" / "test_profiles.json"
 
-
 async def init_db() -> None:
     """Создаёт таблицы (если их нет) и один раз загружает тестовые анкеты.
 
@@ -29,7 +27,6 @@ async def init_db() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     await seed_test_profiles()
-
 
 async def seed_test_profiles() -> None:
     """Загружает data/test_profiles.json, если тестовых анкет в базе ещё нет.
@@ -50,7 +47,7 @@ async def seed_test_profiles() -> None:
                     user_id=str(item["user_id"]),
                     name=item.get("name", ""),
                     university=item.get("university", ""),
-                    degree=item.get("degree", "бакалавриат"),   # у тестовых анкет курсы 1–4
+                    degree=item.get("degree", "бакалавриат"),
                     course=item.get("course"),
                     direction=item.get("direction", ""),
                     city=item.get("city", ""),
