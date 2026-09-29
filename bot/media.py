@@ -1,5 +1,3 @@
-# media.py
-
 from maxapi.enums.upload_type import UploadType
 from maxapi.types.attachments.upload import AttachmentPayload, AttachmentUpload
 
