@@ -3,14 +3,14 @@ import pytest
 
 from core.moderation import find_banned, has_ads, is_clean, is_valid_contact, normalize_github
 
-# ── Мат, оскорбления, экстремизм ─────────────────────────────────────────────
+#Мат, оскорбления, экстремизм
 
 BAD = [
-    # мат (кириллица)
+    # мат 
     "хуй", "Похуй на всё", "нахуя", "ОХУЕЛ", "пизда", "распиздяй", "заебал", "ебать", "уебок",
     "съебался", "блядь", "бля", "блять", "сука", "суки", "сука!", "сучка", "мудак", "гандон",
     "пидор", "пидр", "шлюха", "залупа", "чмо", "говно", "долбоёб", "ебанутый", "шалава",
-    # маскировка: латиница, цифры, символы, пробелы
+    # маскировка
     "xyй", "хууууй", "пиздa", "3аебал", "ху*й", "х у й", "х.у.й", "з а л у п а", "xyйня",
     "eбaть", "п1зда",
     # транслит и смесь алфавитов
@@ -18,7 +18,7 @@ BAD = [
     "ebat", "dolboeb", "Новохуйск",
     # английский мат
     "fuck", "FUCKING", "shit", "bullshit", "bitch",
-    # расизм и национальные оскорбления
+    # расизм
     "ниггер", "nigger", "хачи", "чурки", "жиды", "хохлы", "пиндосы", "черножопый", "узкоглазые",
     # экстремизм
     "Слава Гитлеру", "зиг хайль", "Sieg Heil", "white power", "1488", "14/88", "卐",
@@ -28,16 +28,16 @@ BAD = [
 ]
 
 GOOD = [
-    # похожие на мат, но нормальные слова
+    # похожие на мат
     "страхует", "застрахуй", "не психуй", "употребление", "небо", "небанальный", "обед", "себе",
     "себя", "хулиган", "похудеть", "хуже", "бледный", "бляха", "сукно", "сук дерева", "мудрый",
     "педикюр", "чмокнуть", "хлеб", "учеба", "Глеб", "ребус", "хутор", "сражение", "сравнение",
     "мандарин", "мандат", "херувим", "оскорблять", "потреблять", "корабль", "рубля", "ребята",
     "плохую", "втихую", "долбануть", "дебилитирующий",
-    # похожие на экстремистские, но нормальные слова
+    # похожие на экстремистские
     "хачапури", "жидкость", "жидкий азот", "Нигерия", "Нигер", "зигзаг", "хохолок", "хохлома",
     "Москалёв", "укроп", "даунтаун", "сучковатый",
-    # английские слова, которые в транслите похожи на мат
+    # английские слова
     "jobs", "eyeball", "ebook", "eBay", "Hyundai", "Huawei", "Xue Li", "sherpa", "played",
     "yamashita", "hydrochloric", "debug", "gown",
     # обычная анкета
@@ -46,7 +46,6 @@ GOOD = [
     "Хочу в команду на Цифровой прорыв 2026", "кейс-чемпионат", "Разработчик игр (Unity, C#)",
     "+7 913 148 88 11", "14 лет опыта",
 ]
-
 
 @pytest.mark.parametrize("text", BAD)
 def test_bad_detected(text):
@@ -58,7 +57,7 @@ def test_good_passes(text):
     assert is_clean(text), (text, find_banned(text))
 
 
-# ── Реклама ──────────────────────────────────────────────────────────────────
+#Реклама
 
 ADS = [
     "https://casino.ru", "заходи на vk.com/mygroup", "t.me/channel", "www.example", "site.ru",
@@ -71,19 +70,15 @@ NO_ADS = [
     "Пиши в ТГ @ivan_petrov", "vk: @id12345", "почта ivan@mail.ru",
 ]
 
-
 @pytest.mark.parametrize("text", ADS)
 def test_ads_detected(text):
     assert has_ads(text), text
-
 
 @pytest.mark.parametrize("text", NO_ADS)
 def test_no_ads_passes(text):
     assert not has_ads(text), text
 
-
-# ── GitHub и контакт ─────────────────────────────────────────────────────────
-
+#GitHub и контакт
 
 @pytest.mark.parametrize("text, expected", [
     ("user001", "https://github.com/user001"),
@@ -99,7 +94,6 @@ def test_no_ads_passes(text):
 def test_normalize_github(text, expected):
     assert normalize_github(text) == expected
 
-
 @pytest.mark.parametrize("text", [
     "@ivan_petrov", "ivan_petrov", "+7 913 123-45-67", "89131234567", "ivan@mail.ru",
     "ТГ: @ivan, VK: @ivan", "Иван", "пиши в личку @ivan или на ivan@mail.ru",
@@ -107,11 +101,9 @@ def test_normalize_github(text, expected):
 def test_contact_ok(text):
     assert is_valid_contact(text)
 
-
 @pytest.mark.parametrize("text", ["t.me/ivan", "https://t.me/ivan", "vk.com/ivan", "ivan.ru", "мой сайт ivan точка ру"])
 def test_contact_rejected(text):
     assert not is_valid_contact(text)
-
 
 def test_test_profiles_are_clean():
     """40 тестовых анкет не должны задевать фильтр."""
