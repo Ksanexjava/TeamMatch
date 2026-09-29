@@ -1,9 +1,3 @@
-# bot/handlers/profile.py
-# Анкета: пошаговое заполнение, просмотр, скрытие и удаление (зона Романа).
-#
-# Шаги: имя → фото → вуз → уровень образования → курс → направление → город → роль → цель → интересы → о себе → GitHub → контакт → подтверждение.
-# Пока анкета не подтверждена, ответы лежат в context (FSM), в базу пишем только на шаге «Сохранить».
-
 from maxapi import F
 from maxapi.context.base import BaseContext
 from maxapi.dispatcher import Router
@@ -75,9 +69,7 @@ async def start_form(answer, context: BaseContext, max_username: str | None = No
     await context.set_state(ProfileForm.name)
     await answer(text=texts.ASK_NAME)
 
-
-# ── Шаги с текстовым ответом ─────────────────────────────────────────────────
-
+# Шаги с текстовым ответом
 
 @router.message_created(ProfileForm.name, F.message.body.text)
 async def step_name(event: MessageCreated, context: BaseContext) -> None:
@@ -190,9 +182,7 @@ async def step_contact(event: MessageCreated, context: BaseContext) -> None:
     await context.update_data(username=value)
     await _advance(event.message.answer, context, "username", lambda: _show_confirm(event.message.answer, context))
 
-
-# ── Шаги с кнопками ──────────────────────────────────────────────────────────
-
+# Шаги с кнопками
 
 @router.message_callback(ProfileForm.degree, F.callback.payload == kb.DEGREE_OTHER)
 async def step_degree_other(event: MessageCallback, context: BaseContext) -> None:
@@ -284,9 +274,7 @@ async def step_restart(event: MessageCallback, context: BaseContext) -> None:
     data = await context.get_data()
     await start_form(event.message.answer, context, data.get("max_username"), data.get("first_name", ""))
 
-
-# ── Переходы между шагами ────────────────────────────────────────────────────
-
+#Переходы между шагами
 
 async def _advance(answer, context: BaseContext, done_field: str, next_step) -> None:
     """Перейти к следующему шагу — или, если это точечное редактирование, сохранить и выйти.
@@ -373,9 +361,7 @@ async def _show_confirm(answer, context: BaseContext) -> None:
     card = texts.profile_card(data, show_contact=True)
     await answer(text=f"Проверь анкету:\n\n{card}", attachments=media.with_photo(data, kb.confirm_kb()))
 
-
-# ── Просмотр и управление анкетой ────────────────────────────────────────────
-
+# Просмотр и управление анкетой
 
 async def _profile_screen(user_id: int) -> tuple[str, list]:
     profile = await repo.get_profile(user_id)
@@ -405,11 +391,8 @@ async def on_edit(event: MessageCallback, context: BaseContext) -> None:
     user = event.callback.user
     await start_form(event.message.answer, context, max_username=user.username, first_name=user.first_name)
 
+# Точечное редактирование
 
-# ── Точечное редактирование ──────────────────────────────────────────────────
-
-# Что редактируем: первый шаг и поле, после которого сохраняем.
-# «Образование» проходит уровень → курс → направление и сохраняется после направления.
 EDIT_STEPS = {
     "name": (_ask_name, "name"),
     "photo": (_ask_photo, "photo"),
@@ -452,7 +435,7 @@ async def on_edit_field(event: MessageCallback, context: BaseContext) -> None:
         **profile, max_username=user.username or "", edit_user_id=user.user_id, edit_last=last
     )
     try:
-        await event.edit(text=texts.EDIT_CHOOSE, attachments=[])   # убираем кнопки со списка
+        await event.edit(text=texts.EDIT_CHOOSE, attachments=[]) 
     except Exception:
         pass
     await ask(event.message.answer, context)
