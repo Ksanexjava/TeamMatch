@@ -1,11 +1,3 @@
-# bot/handlers/feed.py
-# Лента анкет, лайк / лайк+сообщение / пропуск, мэтчи, уведомления.
-#
-# Логика подбора — в core/ (recommendations, interactions), данные — через db/repo.
-# Карточки отправляются НОВЫМИ сообщениями и ОСТАЮТСЯ в чате как история свайпов, но у
-# старой карточки при свайпе убираются кнопки (остаётся только инфо) — активные кнопки
-# живут только на текущей карточке внизу. Reply-клавиатуры в MAX нет, только inline.
-
 from maxapi import F
 from maxapi.context.base import BaseContext
 from maxapi.dispatcher import Router
@@ -48,7 +40,6 @@ EMPTY_BY_FILTER = (
 )
 SEARCH_LABELS = {"all": "все подходящие", "university": "только мой вуз", "city": "только мой город"}
 
-
 def _card(item: dict) -> str:
     """Карточка кандидата + строка «почему подходит»."""
     return f"{texts.profile_card(item['profile'])}\n\n⚡ {explain(item['details'])}"
@@ -65,7 +56,7 @@ async def _send_to(event, user_id: str, text: str, attachments=None) -> None:
         if str(user_id).isdigit():
             await event.bot.send_message(user_id=int(user_id), text=text, attachments=attachments or [])
     except Exception:
-        pass  # человек мог не открывать бота — молча пропускаем, не роняем бота
+        pass 
 
 
 async def _keep_info(event, profile) -> None:
@@ -77,9 +68,6 @@ async def _keep_info(event, profile) -> None:
     except Exception:
         pass
 
-
-# Режим поиска на пользователя: "all" | "university" | "city". Храним в памяти процесса —
-# на перезапуске бота сбрасывается на «все». Для MVP этого хватает, схему БД не трогаем.
 _search_mode: dict[str, str] = {}
 
 
@@ -114,10 +102,8 @@ async def _show_next(me_id, send) -> None:
     feed = build_feed(me, pool, swiped)
     if not feed:
         if mode != "all":
-            # Пусто из-за фильтра — подсказываем сменить настройки поиска.
             await send(text=EMPTY_BY_FILTER.format(label=SEARCH_LABELS[mode]), attachments=kb.settings_hint_kb())
             return
-        # Анкеты кончились. Если что-то пропускали — предлагаем пройтись по кругу ещё раз.
         skipped = await repo.count_skips(me_id)
         if skipped:
             await send(text=FEED_EMPTY_AGAIN.format(skipped=skipped), attachments=kb.feed_empty_kb())
@@ -133,8 +119,6 @@ async def _register_like(event, me_id, target_id: str, message: str = "") -> tup
     await repo.save_swipe(me_id, target_id, liked=True, message=message)
     partner = await repo.get_profile(target_id)
 
-    # Тестовые анкеты лайкают в ответ автоматически — чтобы проверяющий (жюри)
-    # мог получить мэтч в одиночку: живых людей в боте на проверке ещё нет.
     if partner and partner.get("is_test"):
         await repo.save_swipe(target_id, me_id, liked=True)
 
@@ -142,15 +126,13 @@ async def _register_like(event, me_id, target_id: str, message: str = "") -> tup
     matched = bool(partner and is_match(likes, str(me_id), str(target_id)))
 
     if matched:
-        # Собеседнику бот пишет сам (даже если он не в чате) — карточка с моим фото и контактом.
-        # К уведомлению крепим меню, чтобы человек мог сразу листать ленту или уйти в меню.
         me = await repo.get_profile(me_id) or {}
         note = _match_text(me)
         if message:
             note += f"\n\n💬 Сообщение: {message}"
         await _send_to(event, target_id, note, media.with_photo(me, kb.after_match_kb()))
     elif partner and not partner.get("is_test"):
-        # Ещё не мэтч, но человек реальный — уведомление с кнопками «посмотреть / не сейчас».
+     
         await _send_to(event, target_id, LIKED_NUDGE, kb.liked_nudge_kb())
 
     return matched, partner
@@ -166,10 +148,7 @@ async def _after_swipe(event, me_id, matched: bool, partner: dict | None) -> Non
     else:
         await _show_next(me_id, event.message.answer)
 
-
-# ── Лента ─────────────────────────────────────────────────────────────────────
-
-
+#Лента
 @router.message_callback(F.callback.payload == kb.MENU_FEED)
 async def on_feed(event: MessageCallback) -> None:
     await event.answer()
@@ -183,14 +162,12 @@ async def on_feed_again(event: MessageCallback) -> None:
     me_id = event.callback.user.user_id
     await repo.reset_skips(me_id)
     try:
-        await event.edit(text=FEED_AGAIN_START, attachments=[])   # убираем кнопки со старого сообщения
+        await event.edit(text=FEED_AGAIN_START, attachments=[]) 
     except Exception:
         pass
     await _show_next(me_id, event.message.answer)
-
-
-# ── Настройки поиска ──────────────────────────────────────────────────────────
-
+    
+# Настройки поиска
 
 @router.message_callback(F.callback.payload == kb.MENU_SETTINGS)
 async def on_settings(event: MessageCallback) -> None:
@@ -227,7 +204,7 @@ async def on_like(event: MessageCallback) -> None:
     me_id = event.callback.user.user_id
     target_id = event.callback.payload.split(":", 2)[2]
     matched, partner = await _register_like(event, me_id, target_id)
-    await _keep_info(event, partner)  # старая карточка — без кнопок, только инфо
+    await _keep_info(event, partner)  
     await _after_swipe(event, me_id, matched, partner)
 
 
@@ -237,7 +214,7 @@ async def on_skip(event: MessageCallback) -> None:
     me_id = event.callback.user.user_id
     target_id = event.callback.payload.split(":", 2)[2]
     await repo.save_swipe(me_id, target_id, liked=False)
-    await _keep_info(event, await repo.get_profile(target_id))  # старая карточка — без кнопок
+    await _keep_info(event, await repo.get_profile(target_id)) 
     await _show_next(me_id, event.message.answer)
 
 
@@ -247,7 +224,7 @@ async def on_like_with_message(event: MessageCallback, context: BaseContext) -> 
     target_id = event.callback.payload.split(":", 2)[2]
     await context.update_data(feed_target=target_id)
     await context.set_state(FeedFlow.writing_message)
-    await _keep_info(event, await repo.get_profile(target_id))  # убираем кнопки со старой карточки
+    await _keep_info(event, await repo.get_profile(target_id)) 
     await event.message.answer(text=ASK_MESSAGE)
 
 
@@ -255,7 +232,7 @@ async def on_like_with_message(event: MessageCallback, context: BaseContext) -> 
 async def on_feed_message(event: MessageCreated, context: BaseContext) -> None:
     body = event.message.body
     message = (body.text or "").strip() if body else ""
-    # Сообщение уйдёт другому человеку — мат и рекламу не пропускаем, ждём новый текст
+   
     if not is_clean(message):
         await event.message.answer(texts.BANNED_WORDS)
         return
@@ -273,7 +250,7 @@ async def on_feed_message(event: MessageCreated, context: BaseContext) -> None:
     await _after_swipe(event, me_id, matched, partner)
 
 
-# ── Мои мэтчи ─────────────────────────────────────────────────────────────────
+#Мои мэтчи
 
 
 @router.message_callback(F.callback.payload == kb.MENU_MATCHES)
