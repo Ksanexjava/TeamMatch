@@ -77,7 +77,7 @@ def _chunks(text: str) -> list[str]:
 def normalize_text(text: str) -> list[str]:
     """Текст → список слов-кандидатов (все варианты написания) для проверки."""
     words: list[str] = []
-    for chunk in _chunks(text or "")
+    for chunk in _chunks(text or ""):
         chunk = chunk.strip("!")
         pieces = {_MASK_CHARS.sub("", chunk)} | set(_MASK_CHARS.split(chunk))
         for piece in pieces:
