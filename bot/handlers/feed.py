@@ -151,8 +151,45 @@ async def _after_swipe(event, me_id, matched: bool, partner: dict | None) -> Non
 #Лента
 @router.message_callback(F.callback.payload == kb.MENU_FEED)
 async def on_feed(event: MessageCallback) -> None:
+    """«Искать сокомандников»: главное меню удаляем, у других сообщений убираем кнопки."""
     await event.answer()
+    body = event.message.body if event.message else None
+    if body and body.text == texts.MAIN_MENU:
+        try:
+            await event.message.delete()
+        except Exception:
+            await _drop_buttons(event)
+    else:
+        await _drop_buttons(event)
     await _show_next(event.callback.user.user_id, event.message.answer)
+
+
+async def _drop_buttons(event: MessageCallback) -> None:
+    """Убрать кнопки из сообщения (меню, мэтч), оставив его текст."""
+    body = event.message.body if event.message else None
+    text = (body.text if body else "") or ""
+    if not text:
+        return
+    try:
+        await event.edit(text=text, attachments=[])
+    except Exception:
+        pass
+
+
+@router.message_callback(F.callback.payload == kb.FEED_NEXT)
+async def on_feed_next(event: MessageCallback) -> None:
+    """«Смотреть дальше» под мэтчем: гасим кнопки у мэтча и присылаем следующую анкету."""
+    await event.answer()
+    await _drop_buttons(event)
+    await _show_next(event.callback.user.user_id, event.message.answer)
+
+
+@router.message_callback(F.callback.payload == kb.FEED_MENU)
+async def on_feed_menu(event: MessageCallback) -> None:
+    """«В меню» под мэтчем: мэтч с контактом остаётся в чате, меню приходит новым сообщением."""
+    await event.answer()
+    await _drop_buttons(event)
+    await event.message.answer(text=texts.MAIN_MENU, attachments=kb.main_menu_kb())
 
 
 @router.message_callback(F.callback.payload == kb.FEED_AGAIN)
