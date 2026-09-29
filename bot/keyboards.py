@@ -41,6 +41,8 @@ FEED_LIKE = "feed:like"
 FEED_MSG = "feed:msg"
 FEED_SKIP = "feed:skip"
 FEED_AGAIN = "feed:again"
+FEED_NEXT = "feed:next"
+FEED_MENU = "feed:menu"
 
 SEARCH_MODE = "search:mode"
 SEARCH_MODES = [
@@ -130,8 +132,8 @@ def back_kb() -> list:
 def after_match_kb() -> list:
     """После мэтча: продолжить листать ленту или вернуться в меню (зона Миши)."""
     kb = InlineKeyboardBuilder()
-    kb.row(CallbackButton(text="🔍 Смотреть дальше", payload=MENU_FEED))
-    kb.row(CallbackButton(text="← В меню", payload=MENU_BACK))
+    kb.row(CallbackButton(text="🔍 Смотреть дальше", payload=FEED_NEXT))
+    kb.row(CallbackButton(text="← В меню", payload=FEED_MENU))
     return _markup(kb)
 
 
