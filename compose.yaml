@@ -1,6 +1,4 @@
-# Запуск всего проекта одной командой:  docker compose up --build -d
-# Остановка:                            docker compose down
-# Остановка с удалением базы:           docker compose down -v
+# Запуск всего проекта одной командой:  docker compose up --build -d; Остановка: docker compose down; Остановка с удалением базы: docker compose down -v
 
 services:
   bot:
