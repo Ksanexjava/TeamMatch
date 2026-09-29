@@ -1,7 +1,3 @@
-# bot/handlers/fallback.py
-# Подключается ПОСЛЕДНИМ: ловит всё, что не поймали другие обработчики.
-# Нужен, чтобы бот не молчал на стикер, фото или текст не по сценарию.
-
 from maxapi.context.base import BaseContext
 from maxapi.dispatcher import Router
 from maxapi.types.updates.message_callback import MessageCallback
@@ -31,5 +27,4 @@ async def on_any_message(event: MessageCreated, context: BaseContext) -> None:
 
 @router.message_callback()
 async def on_any_callback(event: MessageCallback) -> None:
-    # Старая кнопка из прошлого шага или после перезапуска — просто подтверждаем нажатие
     await event.answer(notification="Эта кнопка уже неактуальна. Напиши /start")
