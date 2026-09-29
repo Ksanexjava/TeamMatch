@@ -1,19 +1,11 @@
-# demo.py
-# Локальный тест твоей части — БЕЗ Postgres и БЕЗ MAX.
-# Загружает тестовые анкеты и показывает работу ленты, объяснений и мэтчей.
-#
-# Запуск из корня проекта:  python demo.py
-
 import json
 
 from core.recommendations import build_feed, explain
 from core.interactions import matches_for
 
-
 def load_profiles(path="data/test_profiles.json"):
     with open(path, encoding="utf-8") as f:
         return json.load(f)
-
 
 def show_feed(profiles, me_id, limit=8):
     """Печатает ленту рекомендаций для одного пользователя."""
@@ -24,7 +16,6 @@ def show_feed(profiles, me_id, limit=8):
         p = item["profile"]
         print(f"  [{item['score']:>2} очк.] {p['name']}, {p['university']}, {p['course']} курс — {p['role']}")
         print(f"           {explain(item['details'])}")
-
 
 def demo_match(profiles):
     """Показывает, как срабатывает взаимный лайк (мэтч)."""
@@ -37,7 +28,6 @@ def demo_match(profiles):
     print(f"{a['name']} лайкнул(а) {b['name']}, {b['name']} лайкнул(а) в ответ.")
     partners = matches_for(likes, a["user_id"])
     print(f"Мэтчи для {a['name']}: {partners}  → бот отдаёт username для связи")
-
 
 if __name__ == "__main__":
     profiles = load_profiles()
