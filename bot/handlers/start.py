@@ -1,6 +1,3 @@
-# bot/handlers/start.py
-# Первый запуск, согласие на обработку данных, главное меню, /help, /cancel (зона Романа).
-
 from maxapi import F
 from maxapi.context.base import BaseContext
 from maxapi.dispatcher import Router
@@ -86,7 +83,7 @@ async def on_menu_start(event: MessageCallback, context: BaseContext) -> None:
     await event.answer()
     await context.clear()
     try:
-        await event.edit(text=texts.DELETED, attachments=[])  # убираем кнопку, чтобы не нажать дважды
+        await event.edit(text=texts.DELETED, attachments=[])
     except Exception:
         pass
     await _greet(event.callback.user.user_id, event.message.answer)
