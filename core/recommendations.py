@@ -1,6 +1,3 @@
-# core/recommendations.py
-# Построение ЛЕНТЫ рекомендаций: кого и в каком порядке показывать пользователю.
-
 from core.matching import compatibility
 
 
@@ -14,9 +11,9 @@ def build_feed(me, all_profiles, swiped_ids=()):
     feed = []
     for profile in all_profiles:
         if profile["user_id"] == me["user_id"]:
-            continue                       # себя не показываем
+            continue   
         if profile["user_id"] in swiped:
-            continue                       # уже свайпнутых не показываем
+            continue 
         points, details = compatibility(me, profile)
         feed.append({"profile": profile, "score": points, "details": details})
 
