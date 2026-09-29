@@ -1,9 +1,3 @@
-# core/interactions.py
-# Логика лайков и мэтчей — то самое «лайки / мэтчи / уведомления / мои мэтчи».
-# Чистые функции над списком лайков. В боте лайки берутся из базы (зона Романа),
-# здесь — из теста. Один лайк — словарь: {"from_id": ..., "to_id": ..., "message": ...}
-
-
 def liked(likes, from_id, to_id):
     """Лайкнул ли from_id пользователя to_id."""
     return any(l["from_id"] == from_id and l["to_id"] == to_id for l in likes)
