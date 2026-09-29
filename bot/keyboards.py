@@ -1,7 +1,3 @@
-# bot/keyboards.py
-# Все inline-клавиатуры бота в одном месте.
-# payload — строка, которую бот получает при нажатии кнопки (event.callback.payload).
-
 from maxapi.types.attachments.buttons.callback_button import CallbackButton
 from maxapi.utils.inline_keyboard import InlineKeyboardBuilder
 
@@ -28,25 +24,24 @@ CONSENT_NO = "consent:no"
 MENU_FEED = "menu:feed"        
 MENU_MATCHES = "menu:matches"  
 MENU_PROFILE = "menu:profile"
-MENU_START = "menu:start"            # начать заново (после удаления данных)
-MENU_EDIT = "menu:edit"              # заполнить анкету заново
-MENU_EDIT_FIELDS = "menu:edit_fields"  # редактировать отдельные поля
-MENU_REPORT = "menu:report"          # пожаловаться
+MENU_START = "menu:start"
+MENU_EDIT = "menu:edit"
+MENU_EDIT_FIELDS = "menu:edit_fields"
+MENU_REPORT = "menu:report"
 EDIT_FIELD = "edit"               
 MENU_HIDE = "menu:hide"
 MENU_SHOW = "menu:show"
 MENU_DELETE = "menu:delete"
 MENU_DELETE_CONFIRM = "menu:delete_confirm"
-MENU_SETTINGS = "menu:settings"   # настройки поиска — зона Миши
+MENU_SETTINGS = "menu:settings"
 MENU_BACK = "menu:back"
 
 
-FEED_LIKE = "feed:like"   # лайкнуть
-FEED_MSG = "feed:msg"     # лайкнуть с сообщением
-FEED_SKIP = "feed:skip"   # пропустить
-FEED_AGAIN = "feed:again" # лента закончилась
+FEED_LIKE = "feed:like"
+FEED_MSG = "feed:msg"
+FEED_SKIP = "feed:skip"
+FEED_AGAIN = "feed:again"
 
-# Режимы ленты. Полный payload — SEARCH_MODE + ":" + режим, например "search:mode:city".
 SEARCH_MODE = "search:mode"
 SEARCH_MODES = [
     ("all", "Все подходящие"),
@@ -54,7 +49,7 @@ SEARCH_MODES = [
     ("city", "Только мой город"),
 ]
 
-NUDGE_DISMISS = "nudge:dismiss"  # «Не сейчас» на уведомлении «тебя оценили»
+NUDGE_DISMISS = "nudge:dismiss"
 
 SKIP = "form:skip"
 USE_MY_USERNAME = "form:use_username"
