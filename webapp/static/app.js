@@ -242,16 +242,25 @@
   const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 
   function avatar(p, cls) {
-    const box = el("div", { class: "avatar" + (cls ? " " + cls : "") });
+    const box = el("div", { class: "avatar" + tone(p) + (cls ? " " + cls : "") });
     if (p.photo_url) box.append(el("img", { src: p.photo_url, alt: "", loading: "lazy" }));
     else box.textContent = initials(p.name);
     return box;
   }
 
   function studyLine(p) {
-    const parts = [p.university, p.degree].filter(Boolean);
-    if (p.course) parts.push(p.course + " курс");
-    return parts.join(" · ");
+    // Обычная фраза, а не строка через точки-разделители: «3 курс НГУ, бакалавриат».
+    let s = [p.course ? p.course + " курс" : "", p.university || ""].filter(Boolean).join(" ");
+    if (p.degree) s = s ? s + ", " + p.degree : p.degree;
+    return s;
+  }
+
+  // Тон обложки и аватара: один и тот же человек всегда одного цвета.
+  function tone(p) {
+    const s = String((p && (p.user_id || p.name)) || "");
+    let h = 0;
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 4;
+    return " t" + (h + 1);
   }
 
   // Ссылки на документы и закон — для экрана согласия и раздела «Анкета».
@@ -682,7 +691,7 @@
 
   function profileCard(p, { reasons, explainText, mine, contact } = {}) {
     const shared = new Set(((reasons && reasons.shared_interests) || []).map((x) => x.toLowerCase()));
-    const cover = cell("blue cover");
+    const cover = cell("blue cover" + tone(p));
     if (p.photo_url) cover.append(el("img", { src: p.photo_url, alt: "", draggable: "false" }));
     else cover.append(el("div", { class: "initials", text: initials(p.name) }));
 
