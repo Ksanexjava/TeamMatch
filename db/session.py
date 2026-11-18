@@ -17,7 +17,7 @@ Session = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession
 
 TEST_PROFILES_PATH = Path(__file__).resolve().parent.parent / "data" / "test_profiles.json"
 
-async def init_db() -> None:
+async def init_db(seed: bool = True) -> None:
     """Создаёт таблицы (если их нет) и один раз загружает тестовые анкеты.
 
     Для MVP вместо миграций Alembic используем create_all: таблицы создаются
@@ -26,7 +26,8 @@ async def init_db() -> None:
     """
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    await seed_test_profiles()
+    if seed:
+        await seed_test_profiles()
 
 async def seed_test_profiles() -> None:
     """Загружает data/test_profiles.json, если тестовых анкет в базе ещё нет.

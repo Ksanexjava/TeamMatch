@@ -22,3 +22,8 @@ class ProfileForm(StatesGroup):
 
 class FeedFlow(StatesGroup):
     writing_message = State()
+
+
+class LinkFlow(StatesGroup):
+    """Ввод кода привязки: «у меня уже есть анкета в Telegram»."""
+    code = State()

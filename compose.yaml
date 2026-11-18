@@ -12,6 +12,59 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # Telegram-бот: весь сценарий кнопками в чате (как бот MAX), та же база.
+  # Работает через long polling — домен и HTTPS не нужны.
+  # Включается профилем: COMPOSE_PROFILES=telegram в .env.
+  tgbot:
+    profiles: ["telegram"]
+    build: .
+    command: ["python", "-m", "tgbot.main"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://teammatch:teammatch@postgres:5432/teammatch
+      REDIS_URL: redis://redis:6379/1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Мини-приложение для Telegram и MAX (кнопку «Открыть» в Telegram ставит сервис tgbot).
+  # Та же база, что у бота MAX: пул анкет общий.
+  # Включается профилем: COMPOSE_PROFILES=webapp в .env (тогда up/down работают как раньше).
+  webapp:
+    profiles: ["webapp"]
+    build: .
+    command: ["uvicorn", "webapp.main:app", "--host", "0.0.0.0", "--port", "8080", "--proxy-headers"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://teammatch:teammatch@postgres:5432/teammatch
+      MEDIA_DIR: /app/media
+    volumes:
+      - media:/app/media
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # HTTPS для мини-приложения: Caddy сам получает сертификат Let's Encrypt
+  # для WEBAPP_DOMAIN. Нужны открытые порты 80 и 443 и A-запись домена на этот сервер.
+  caddy:
+    profiles: ["webapp"]
+    image: caddy:2.8-alpine
+    environment:
+      WEBAPP_DOMAIN: ${WEBAPP_DOMAIN:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on:
+      - webapp
+    restart: unless-stopped
+
   postgres:
     image: postgres:16-alpine
     environment:
@@ -38,3 +91,5 @@ services:
 
 volumes:
   pgdata:
+  media:
+  caddy_data:

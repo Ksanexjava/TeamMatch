@@ -1,6 +1,8 @@
 from maxapi.types.attachments.buttons.callback_button import CallbackButton
+from maxapi.types.attachments.buttons.link_button import LinkButton
 from maxapi.utils.inline_keyboard import InlineKeyboardBuilder
 
+from config import LAW_152_URL, settings
 from core.interests import LOOKING_FOR_OPTIONS
 
 ROLES = ["разработка", "ML", "аналитика", "дизайн", "маркетинг", "финансы", "питчинг", "менеджмент"]
@@ -20,6 +22,12 @@ MED_DEGREES = [
 
 CONSENT_YES = "consent:yes"
 CONSENT_NO = "consent:no"
+
+LINK_START = "link:start"            # «У меня уже есть анкета в Telegram» → ввести код
+LINK_REPLACE = "link:replace"        # link:replace:<код> — удалить анкету здесь и подключиться
+LINK_CANCEL = "link:cancel"
+MENU_LINK = "menu:link"              # «Подключить Telegram» — выдать код
+CONFIRM_SAVE_FORCE = "form:save_force"
 
 MENU_FEED = "menu:feed"        
 MENU_MATCHES = "menu:matches"  
@@ -64,10 +72,52 @@ def _markup(builder: InlineKeyboardBuilder) -> list:
     return [builder.as_markup()]
 
 
+def legal_buttons(kb: InlineKeyboardBuilder) -> None:
+    """Ссылки на текст согласия, политику и сам закон (152-ФЗ)."""
+    if settings.consent_url:
+        kb.row(
+            LinkButton(text="📄 Согласие", url=settings.consent_url),
+            LinkButton(text="🔒 Политика", url=settings.privacy_url),
+        )
+    kb.row(LinkButton(text="⚖️ Закон 152-ФЗ", url=LAW_152_URL))
+
+
 def consent_kb() -> list:
     kb = InlineKeyboardBuilder()
-    kb.row(CallbackButton(text="Согласен(на), начнём", payload=CONSENT_YES))
+    kb.row(CallbackButton(text="✅ Согласен(на), начнём", payload=CONSENT_YES))
+    legal_buttons(kb)
+    kb.row(CallbackButton(text="🔗 Уже есть анкета в Telegram", payload=LINK_START))
     kb.row(CallbackButton(text="Нет, спасибо", payload=CONSENT_NO))
+    return _markup(kb)
+
+
+def link_replace_kb(code: str) -> list:
+    kb = InlineKeyboardBuilder()
+    kb.row(CallbackButton(text="Удалить анкету здесь и подключить", payload=f"{LINK_REPLACE}:{code}"))
+    kb.row(CallbackButton(text="Отмена", payload=LINK_CANCEL))
+    return _markup(kb)
+
+
+def link_cancel_kb() -> list:
+    kb = InlineKeyboardBuilder()
+    kb.row(CallbackButton(text="Отмена", payload=LINK_CANCEL))
+    return _markup(kb)
+
+
+def link_code_kb(code: str) -> list:
+    """Под кодом привязки: открыть Telegram-бота сразу с кодом (если имя бота задано)."""
+    kb = InlineKeyboardBuilder()
+    if settings.telegram_bot_username:
+        kb.row(LinkButton(text="Открыть Тиммейт в Telegram",
+                          url=f"https://t.me/{settings.telegram_bot_username}?start=link-{code}"))
+    kb.row(CallbackButton(text="← Назад к анкете", payload=MENU_PROFILE))
+    return _markup(kb)
+
+
+def duplicate_kb() -> list:
+    kb = InlineKeyboardBuilder()
+    kb.row(CallbackButton(text="🔗 Ввести код из Telegram", payload=LINK_START))
+    kb.row(CallbackButton(text="Это не я — сохранить анкету", payload=CONFIRM_SAVE_FORCE))
     return _markup(kb)
 
 
@@ -153,6 +203,7 @@ def profile_kb(is_active: bool) -> list:
         kb.row(CallbackButton(text="🙈 Скрыть анкету из поиска", payload=MENU_HIDE))
     else:
         kb.row(CallbackButton(text="👀 Снова показывать в поиске", payload=MENU_SHOW))
+    kb.row(CallbackButton(text="🔗 Подключить Telegram", payload=MENU_LINK))
     kb.row(CallbackButton(text="🗑 Удалить мои данные", payload=MENU_DELETE))
     kb.row(CallbackButton(text="← В меню", payload=MENU_BACK))
     return _markup(kb)

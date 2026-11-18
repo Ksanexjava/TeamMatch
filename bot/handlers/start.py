@@ -8,6 +8,7 @@ from maxapi.types.updates.message_created import MessageCreated
 
 from bot import keyboards as kb
 from bot import texts
+from bot.handlers import link
 from bot.handlers.profile import start_form
 from db import repo
 
@@ -30,6 +31,11 @@ async def on_bot_started(event: BotStarted, context: BaseContext) -> None:
     async def answer(text, attachments):
         await event.bot.send_message(user_id=event.user.user_id, text=text, attachments=attachments)
 
+    # Переход по ссылке https://max.ru/<бот>?start=link-<код> — подключение к анкете из Telegram.
+    payload = event.payload or ""
+    if payload.startswith("link-"):
+        await link.redeem(answer, event.user.user_id, payload[len("link-"):], context)
+        return
     await _greet(event.user.user_id, answer)
 
 
