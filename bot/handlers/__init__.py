@@ -1,3 +1,3 @@
-from bot.handlers import fallback, feed, profile, start
+from bot.handlers import fallback, feed, link, profile, start
 
-routers = [start.router, profile.router, feed.router, fallback.router]
+routers = [link.router, start.router, profile.router, feed.router, fallback.router]

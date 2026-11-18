@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <title>Тиммейт</title>
+  <link rel="icon" href="/static/mark.png">
+  <link rel="preload" href="/static/fonts/roboto-condensed-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/static/fonts/fonts.css?v=5">
+  <link rel="stylesheet" href="/static/app.css?v=5">
+  <script>
+    // Площадка определяется по фрагменту URL, который добавляет мессенджер:
+    // Telegram — #tgWebAppData=…, MAX — #WebAppData=…
+    // Подключаем только SDK своей площадки.
+    (function () {
+      var hash = location.hash || "";
+      var query = new URLSearchParams(location.search);
+      var platform = query.get("platform");
+      if (!platform) {
+        if (hash.indexOf("tgWebAppData") !== -1) platform = "tg";
+        else if (hash.indexOf("WebAppData") !== -1) platform = "max";
+        else platform = "web";
+      }
+      window.__PLATFORM__ = platform;
+      var src = platform === "tg" ? "https://telegram.org/js/telegram-web-app.js"
+              : platform === "max" ? "https://st.max.ru/js/max-web-app.js" : null;
+      if (src) document.write('<script src="' + src + '"><\/script>');
+    })();
+  </script>
+</head>
+<body>
+  <div id="app" aria-live="polite">
+    <div class="splash"><img src="/static/mark.png" alt=""></div>
+  </div>
+  <div id="sheet-root"></div>
+  <div id="toast" role="status"></div>
+  <script src="/static/app.js?v=5"></script>
+</body>
+</html>

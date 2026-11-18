@@ -5,7 +5,9 @@ from maxapi.types.attachments.upload import AttachmentPayload, AttachmentUpload
 def photo_attachment(profile: dict):
     """Вложение-фото по сохранённому токену. None, если фото нет или собрать не удалось."""
     token = (profile or {}).get("photo")
-    if not token:
+    # Фото из мини-приложения (web:<файл>) и из Telegram (tgfile:<id>) — не токены MAX,
+    # в чат бота MAX их не прикрепляем.
+    if not token or token.startswith(("web:", "tgfile:")):
         return None
     try:
         return AttachmentUpload(type=UploadType.IMAGE, payload=AttachmentPayload(token=token))

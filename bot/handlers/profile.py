@@ -261,6 +261,29 @@ async def step_contact_username(event: MessageCallback, context: BaseContext) ->
 
 @router.message_callback(ProfileForm.confirm, F.callback.payload == kb.CONFIRM_SAVE)
 async def step_save(event: MessageCallback, context: BaseContext) -> None:
+    user_id = event.callback.user.user_id
+    data = await context.get_data()
+    # Новая анкета с контактом, который уже есть у анкеты из Telegram, — скорее всего,
+    # человек уже с нами. Предлагаем подключиться к ней по коду вместо второй анкеты.
+    if not await repo.has_profile(user_id):
+        duplicate = await repo.find_duplicate(str(user_id), data.get("username", ""))
+        if duplicate:
+            await event.answer()
+            await event.message.answer(
+                text=texts.DUPLICATE_FOUND.format(contact=duplicate.get("username") or "—"),
+                attachments=kb.duplicate_kb(),
+            )
+            return
+    await _save_new(event, context)
+
+
+@router.message_callback(ProfileForm.confirm, F.callback.payload == kb.CONFIRM_SAVE_FORCE)
+async def step_save_force(event: MessageCallback, context: BaseContext) -> None:
+    """«Это не я — сохранить анкету» после предупреждения о дубле."""
+    await _save_new(event, context)
+
+
+async def _save_new(event: MessageCallback, context: BaseContext) -> None:
     data = await context.get_data()
     await repo.save_profile(event.callback.user.user_id, data)
     await context.clear()

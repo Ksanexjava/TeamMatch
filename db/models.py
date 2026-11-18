@@ -77,3 +77,58 @@ class Swipe(Base):
     def to_like_dict(self) -> dict:
         """Лайк в формате core/interactions.py: {"from_id", "to_id", "message"}."""
         return {"from_id": self.from_id, "to_id": self.to_id, "message": self.message}
+
+
+class UserSettings(Base):
+    """Настройки пользователя, которые должны переживать перезапуск.
+
+    Отдельная таблица, а не колонка в profiles: create_all создаёт новые таблицы
+    на боевой базе, но не добавляет колонки в существующие.
+    """
+
+    __tablename__ = "user_settings"
+
+    user_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    search_mode: Mapped[str] = mapped_column(String(20), default="all")
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class Account(Base):
+    """Аккаунт мессенджера, привязанный к чужой (уже существующей) анкете.
+
+    Анкета одна на человека. Её id — id аккаунта, с которого её создали
+    (MAX: «123», Telegram: «tg:123»). Если тот же человек подключает второй мессенджер,
+    сюда пишется строка «платформа + внешний id → id анкеты», и второй аккаунт
+    видит и правит ту же анкету. Для первого (родного) аккаунта строка не нужна.
+    """
+
+    __tablename__ = "accounts"
+
+    platform: Mapped[str] = mapped_column(String(10), primary_key=True)      # tg / max
+    external_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    profile_id: Mapped[str] = mapped_column(String(64), index=True)
+    linked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class LinkCode(Base):
+    """Одноразовый код привязки второго мессенджера. Живёт 10 минут."""
+
+    __tablename__ = "link_codes"
+
+    code: Mapped[str] = mapped_column(String(16), primary_key=True)
+    profile_id: Mapped[str] = mapped_column(String(64), index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class Consent(Base):
+    """Журнал согласий на обработку ПД (152-ФЗ, ст. 9): кто, когда, с какой площадки, какую редакцию."""
+
+    __tablename__ = "consents"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    profile_id: Mapped[str] = mapped_column(String(64), index=True)
+    account_id: Mapped[str] = mapped_column(String(64))
+    version: Mapped[str] = mapped_column(String(20))
+    accepted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -12,6 +12,7 @@ from core.interactions import is_match, matches_for
 from core.moderation import has_ads, is_clean
 from core.recommendations import build_feed, explain
 from db import repo
+from messengers import notify
 
 router = Router(router_id="feed")
 
@@ -25,6 +26,7 @@ FEED_AGAIN_START = "🔄 Показываю пропущенные анкеты 
 ASK_MESSAGE = "Напиши короткое сообщение — человек увидит его, если лайкнет в ответ:"
 NO_MATCHES = "Пока мэтчей нет. Полайкай анкеты в «Искать сокомандников» 🙂"
 LIKED_NUDGE = "Кто-то оценил твою анкету 👀 Загляни в «Искать сокомандников» — вдруг взаимно!"
+LIKED_NUDGE_TG = "Кто-то оценил твою анкету 👀 Загляни в ленту — вдруг взаимно!"
 
 SETTINGS_TEXT = (
     "⚙️ Настройки поиска\n\n"
@@ -50,13 +52,12 @@ def _match_text(partner: dict) -> str:
     return "🎉 У тебя новый мэтч!\n\n" + texts.profile_card(partner, show_contact=True)
 
 
-async def _send_to(event, user_id: str, text: str, attachments=None) -> None:
-    """Отправить сообщение другому пользователю. Тестовым анкетам (id вида u001) не пишем."""
-    try:
-        if str(user_id).isdigit():
-            await event.bot.send_message(user_id=int(user_id), text=text, attachments=attachments or [])
-    except Exception:
-        pass 
+async def _send_to(event, user_id: str, text: str, attachments=None, tg_text: str | None = None) -> None:
+    """Отправить сообщение другому пользователю — в MAX или в Telegram (общий пул анкет).
+
+    Тестовым анкетам (id вида u001) не пишем.
+    """
+    await notify.send_to_profile(user_id, text, max_bot=event.bot, max_attachments=attachments, tg_text=tg_text)
 
 
 async def _keep_info(event, profile) -> None:
@@ -68,15 +69,14 @@ async def _keep_info(event, profile) -> None:
     except Exception:
         pass
 
-_search_mode: dict[str, str] = {}
+# Режим поиска хранится в базе (таблица user_settings) — общий с мини-приложением
+# и переживает перезапуск.
+async def _get_mode(user_id) -> str:
+    return await repo.get_search_mode(user_id)
 
 
-def _get_mode(user_id) -> str:
-    return _search_mode.get(str(user_id), "all")
-
-
-def _set_mode(user_id, mode: str) -> None:
-    _search_mode[str(user_id)] = mode
+async def _set_mode(user_id, mode: str) -> None:
+    await repo.set_search_mode(user_id, mode)
 
 
 def _filter_pool(me: dict, pool: list, mode: str) -> list:
@@ -96,7 +96,7 @@ async def _show_next(me_id, send) -> None:
     if me is None:
         await send(text=texts.NO_PROFILE)
         return
-    mode = _get_mode(me_id)
+    mode = await _get_mode(me_id)
     pool = _filter_pool(me, await repo.list_active_profiles(), mode)
     swiped = await repo.get_swiped_ids(me_id)
     feed = build_feed(me, pool, swiped)
@@ -116,6 +116,7 @@ async def _show_next(me_id, send) -> None:
 
 async def _register_like(event, me_id, target_id: str, message: str = "") -> tuple[bool, dict | None]:
     """Записать лайк, поймать мэтч, уведомить собеседника. Возвращает (мэтч?, анкета собеседника)."""
+    me_id = await repo.resolve_id(me_id)  # аккаунт MAX может быть привязан к анкете из Telegram
     await repo.save_swipe(me_id, target_id, liked=True, message=message)
     partner = await repo.get_profile(target_id)
 
@@ -133,7 +134,7 @@ async def _register_like(event, me_id, target_id: str, message: str = "") -> tup
         await _send_to(event, target_id, note, media.with_photo(me, kb.after_match_kb()))
     elif partner and not partner.get("is_test"):
      
-        await _send_to(event, target_id, LIKED_NUDGE, kb.liked_nudge_kb())
+        await _send_to(event, target_id, LIKED_NUDGE, kb.liked_nudge_kb(), tg_text=LIKED_NUDGE_TG)
 
     return matched, partner
 
@@ -210,7 +211,7 @@ async def on_feed_again(event: MessageCallback) -> None:
 async def on_settings(event: MessageCallback) -> None:
     """Экран настроек поиска: показать текущий режим ленты."""
     await event.answer()
-    mode = _get_mode(event.callback.user.user_id)
+    mode = await _get_mode(event.callback.user.user_id)
     await event.edit(text=SETTINGS_TEXT, attachments=kb.search_settings_kb(mode))
 
 
@@ -220,7 +221,7 @@ async def on_set_search_mode(event: MessageCallback) -> None:
     mode = event.callback.payload.split(":", 2)[2]
     if mode not in SEARCH_LABELS:
         mode = "all"
-    _set_mode(event.callback.user.user_id, mode)
+    await _set_mode(event.callback.user.user_id, mode)
     await event.answer(notification=f"Поиск: {SEARCH_LABELS[mode]}")
     await event.edit(text=SETTINGS_TEXT, attachments=kb.search_settings_kb(mode))
 
@@ -293,7 +294,7 @@ async def on_feed_message(event: MessageCreated, context: BaseContext) -> None:
 @router.message_callback(F.callback.payload == kb.MENU_MATCHES)
 async def on_matches(event: MessageCallback) -> None:
     await event.answer()
-    me_id = event.callback.user.user_id
+    me_id = await repo.resolve_id(event.callback.user.user_id)
     likes = await repo.get_likes_involving(me_id)
     partner_ids = matches_for(likes, str(me_id))
     if not partner_ids:
