@@ -12,7 +12,12 @@ from config import settings
 
 log = logging.getLogger(__name__)
 
-API = "https://api.telegram.org/bot{token}/{method}"
+TELEGRAM_API = "https://api.telegram.org"
+
+
+def api_url(method: str) -> str:
+    """Адрес метода Bot API: свой ретранслятор, если задан, иначе Telegram напрямую."""
+    return f"{settings.telegram_api_base or TELEGRAM_API}/bot{settings.telegram_bot_token}/{method}"
 
 
 def enabled() -> bool:
@@ -20,7 +25,7 @@ def enabled() -> bool:
 
 
 async def call(method: str, payload: dict | None = None, timeout: float = 15):
-    url = API.format(token=settings.telegram_bot_token, method=method)
+    url = api_url(method)
     async with httpx.AsyncClient(timeout=timeout) as client:
         response = await client.post(url, json=payload or {})
     data = response.json()

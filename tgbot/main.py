@@ -1,13 +1,18 @@
 """Запуск Telegram-бота: python -m tgbot.main
 
 Работает через long polling — входящие порты, домен и HTTPS не нужны.
+Если хостинг не выпускает соединения к api.telegram.org, задайте
+TELEGRAM_API_BASE — адрес своего ретранслятора (tools/telegram-relay-worker.js).
 Если задан WEBAPP_URL, дополнительно ставит кнопку мини-приложения в меню чата.
 """
 
 import asyncio
 import logging
+from urllib.parse import urlsplit
 
 from aiogram import Bot, Dispatcher
+from aiogram.client.session.aiohttp import AiohttpSession
+from aiogram.client.telegram import TelegramAPIServer
 from aiogram.fsm.storage.base import BaseStorage
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import BotCommand, MenuButtonCommands, MenuButtonWebApp, WebAppInfo
@@ -57,6 +62,20 @@ async def prepare_db() -> None:
             await asyncio.sleep(2)
 
 
+def build_bot() -> Bot:
+    """Бот ходит в api.telegram.org напрямую либо через свой ретранслятор.
+
+    Ретранслятор нужен там, где хостинг не выпускает соединения к Telegram:
+    в TELEGRAM_API_BASE кладётся его адрес, остальной код об этом не знает.
+    """
+    if not settings.telegram_api_base:
+        return Bot(token=settings.telegram_bot_token)
+    # В адресе может быть секретный префикс пути — в лог он не попадает.
+    log.info("Bot API через ретранслятор, хост %s", urlsplit(settings.telegram_api_base).netloc)
+    api = TelegramAPIServer.from_base(settings.telegram_api_base)
+    return Bot(token=settings.telegram_bot_token, session=AiohttpSession(api=api))
+
+
 async def setup_bot(bot: Bot) -> None:
     await bot.set_my_commands(COMMANDS)
     if settings.webapp_url and settings.telegram_webapp_button:
@@ -73,7 +92,7 @@ async def main() -> None:
     if not settings.telegram_bot_token:
         raise SystemExit("Не задан TELEGRAM_BOT_TOKEN. Впиши токен от @BotFather в .env.")
     await prepare_db()
-    bot = Bot(token=settings.telegram_bot_token)
+    bot = build_bot()
     me = await bot.get_me()
     log.info("Telegram-бот запущен: @%s", me.username)
     await setup_bot(bot)
