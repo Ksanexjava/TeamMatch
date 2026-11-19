@@ -1,0 +1,24 @@
+[
+  {
+    "title": "MGIMO×AI Challenge",
+    "organizer": "",
+    "url": "https://codenrock.com/contests/mgimoai-challenge",
+    "city": "Онлайн",
+    "format": "онлайн",
+    "team_size": "",
+    "starts_on": "2026-11-04",
+    "deadline_on": "2026-11-23",
+    "about": "Межвузовский онлайн-хакатон по маркетингу и бизнесу: прикладные задачи решаются с помощью ИИ-инструментов. Конкурс уже идёт, присоединиться можно до закрытия регистрации."
+  },
+  {
+    "title": "AvitoTech ML CUP 2026",
+    "organizer": "АвитоТех",
+    "url": "https://codenrock.com/contests/avitotech-ml-cup-2026",
+    "city": "Онлайн",
+    "format": "онлайн",
+    "team_size": "",
+    "starts_on": "2026-11-02",
+    "deadline_on": "2026-12-09",
+    "about": "Соревнование по машинному обучению: нужно построить модель ранжирования объявлений в рекомендательной ленте. Идёт до 9 декабря."
+  }
+]

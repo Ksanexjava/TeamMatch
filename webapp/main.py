@@ -9,9 +9,11 @@
 
 import asyncio
 import contextlib
+import secrets
 import logging
 import uuid
 from dataclasses import replace
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, Header, HTTPException, Request, UploadFile
@@ -395,6 +397,72 @@ async def link_redeem(payload: dict, user: WebAppUser = Depends(current_user)):
 
 
 # Документы по персональным данным (152-ФЗ)
+
+# Редактор мероприятий: /admin
+#
+# Включается только непустым ADMIN_TOKEN в .env. Пустой токен — эндпоинты
+# отвечают 404, чтобы редактор нельзя было оставить открытым по недосмотру.
+
+
+def admin_guard(x_admin_token: str = Header(default="")) -> None:
+    if not settings.admin_token:
+        raise HTTPException(404, "Редактор выключен: задайте ADMIN_TOKEN")
+    if not secrets.compare_digest(x_admin_token or "", settings.admin_token):
+        raise HTTPException(401, "Неверный токен")
+
+
+def _clean_event(payload: dict) -> dict:
+    title = str(payload.get("title") or "").strip()
+    if not title:
+        raise HTTPException(422, "Название обязательно")
+    out = {"title": title[:200]}
+    limits = {"organizer": 120, "url": 500, "city": 100, "format": 40, "team_size": 20, "about": 4000}
+    for field, limit in limits.items():
+        if field in payload:
+            out[field] = str(payload.get(field) or "").strip()[:limit]
+    for field in ("starts_on", "deadline_on"):
+        if field in payload:
+            raw = str(payload.get(field) or "").strip()
+            if raw:
+                try:
+                    datetime.strptime(raw, "%Y-%m-%d")
+                except ValueError:
+                    raise HTTPException(422, "Дата должна быть в формате ГГГГ-ММ-ДД")
+            out[field] = raw
+    if "is_published" in payload:
+        out["is_published"] = bool(payload.get("is_published"))
+    return out
+
+
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_page():
+    return FileResponse(STATIC_DIR / "admin.html")
+
+
+@app.get("/api/admin/events", dependencies=[Depends(admin_guard)])
+async def admin_events():
+    return {"items": await repo.admin_list_events()}
+
+
+@app.post("/api/admin/events", dependencies=[Depends(admin_guard)])
+async def admin_create_event(payload: dict):
+    return await repo.create_event(_clean_event(payload))
+
+
+@app.put("/api/admin/events/{event_id}", dependencies=[Depends(admin_guard)])
+async def admin_update_event(event_id: int, payload: dict):
+    out = await repo.update_event(event_id, _clean_event(payload))
+    if not out:
+        raise HTTPException(404, "Мероприятие не найдено")
+    return out
+
+
+@app.delete("/api/admin/events/{event_id}", dependencies=[Depends(admin_guard)])
+async def admin_delete_event(event_id: int):
+    if not await repo.delete_event(event_id):
+        raise HTTPException(404, "Мероприятие не найдено")
+    return {"ok": True}
+
 
 LEGAL_DIR = STATIC_DIR / "legal"
 
