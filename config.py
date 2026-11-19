@@ -27,6 +27,7 @@ class Settings:
     log_level: str
     seed_test_profiles: bool
     telegram_bot_token: str
+    telegram_api_base: str
     webapp_url: str
     media_dir: str
     init_data_ttl: int
@@ -63,6 +64,9 @@ settings = Settings(
     seed_test_profiles=os.environ.get("SEED_TEST_PROFILES", "1") == "1",
     # Мини-приложение и Telegram
     telegram_bot_token=os.environ.get("TELEGRAM_BOT_TOKEN", ""),
+    # Свой ретранслятор Bot API. Пусто — ходим в api.telegram.org напрямую.
+    # Нужен там, где хостинг не выпускает соединения к Telegram (см. DEPLOY.md).
+    telegram_api_base=os.environ.get("TELEGRAM_API_BASE", "").strip().rstrip("/"),
     webapp_url=os.environ.get("WEBAPP_URL", "").rstrip("/"),
     media_dir=os.environ.get("MEDIA_DIR", "./media"),
     init_data_ttl=int(os.environ.get("INIT_DATA_TTL", "86400")),
