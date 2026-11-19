@@ -374,8 +374,11 @@ async def list_events(include_past: bool = False) -> list[dict]:
         )
     out = []
     for ev in rows:
-        last_day = ev.starts_on or ev.deadline_on
-        if not include_past and last_day and last_day < today:
+        # Прячем, только когда обе даты в прошлом. Длинные онлайн-конкурсы
+        # идут месяцами, и к ним можно присоединиться после старта, пока
+        # открыта регистрация, — по одной дате начала такое событие терялось.
+        dates = [d for d in (ev.starts_on, ev.deadline_on) if d]
+        if not include_past and dates and max(dates) < today:
             continue
         out.append(ev.to_dict(seekers=int(counts.get(ev.id, 0))))
     return out
