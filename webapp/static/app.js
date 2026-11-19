@@ -235,7 +235,7 @@
   const S = {
     me: null, options: null,
     feed: [], feedRemaining: 0, feedSkipped: 0, feedLoaded: false,
-    matches: null, tab: "feed", startHandled: false,
+    matches: null, events: null, tab: "feed", startHandled: false,
   };
 
   const initials = (name) => (name || "?").trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
@@ -746,9 +746,9 @@
     S.tab = tab || S.tab;
     setBack(null);
     const content = el("div", { class: "screen with-tabs stack" });
-    const tabs = [["feed", "Лента"], ["matches", "Мэтчи"], ["profile", "Анкета"]];
+    const tabs = [["feed", "Лента"], ["events", "События"], ["matches", "Мэтчи"], ["profile", "Анкета"]];
     const stats = S.me.stats || {};
-    const tabbar = el("nav", { class: "tabbar" }, grid("g3", tabs.map(([id, label]) =>
+    const tabbar = el("nav", { class: "tabbar" }, grid("g4", tabs.map(([id, label]) =>
       cell(S.tab === id ? "on" : "",
         el("button", { class: "tab", "aria-current": S.tab === id ? "page" : null, text: label,
           onclick: () => { if (S.tab !== id) { P.haptic("select"); renderMain(id); } } }),
@@ -756,6 +756,7 @@
       ))));
     mount(content, tabbar);
     if (S.tab === "feed") renderFeed(content);
+    else if (S.tab === "events") renderEvents(content);
     else if (S.tab === "matches") renderMatches(content);
     else renderProfile(content);
   }
@@ -775,7 +776,22 @@
     S.feedRemaining = r.remaining;
     S.feedSkipped = r.skipped;
     S.me.search_mode = r.search_mode;
+    S.feedEvent = r.event || null;
+    S.me.event_id = r.event ? r.event.id : null;
     S.feedLoaded = true;
+  }
+
+  async function setEvent(id) {
+    const next = id || null;
+    if ((S.me.event_id || null) === next) return;
+    P.haptic("select");
+    try {
+      const r = await api("PUT", "/api/settings", { event_id: next });
+      S.me.event_id = r.event_id || null;
+      S.feed = []; S.feedLoaded = false;
+      toast(next ? "Ищем команду на это мероприятие" : "Ищем без привязки к мероприятию");
+      renderMain("feed");
+    } catch (e) { toast(e.message); }
   }
 
   async function setMode(mode) {
@@ -799,18 +815,32 @@
       cell(S.me.search_mode === mode ? "on" : "",
         el("button", { "aria-pressed": String(S.me.search_mode === mode), text: label, onclick: () => setMode(mode) }))));
     const incoming = (S.me.stats || {}).incoming_likes || 0;
+    const target = el("div", {});
     const slot = el("div", {});
     root.append(
-      el("div", {}, head, filters,
+      el("div", {}, head, filters, target,
         incoming ? grid("", cell("yellow", el("p", { class: "lead", text: "Тебя лайкнули: " + incoming }),
           el("p", { text: "Они уже в ленте — лайкни в ответ, и будет мэтч." }))) : null),
       slot,
     );
+    const paintTarget = () => {
+      target.textContent = "";
+      const ev = S.feedEvent;
+      if (!ev) return;
+      target.append(el("div", { class: "etarget" },
+        el("div", { class: "grow" },
+          el("p", { class: "k", text: "Ищем команду на" }),
+          el("p", { class: "lead", text: ev.title }),
+        ),
+        el("button", { class: "btn white sm", text: "Снять", onclick: () => setEvent(null) }),
+      ));
+    };
     root.classList.add("with-actions");
     if (!S.feedLoaded) {
       slot.append(grid("", cell("", el("p", { class: "lead", text: "Подбираю людей…" }))));
       try { await loadFeed(); } catch (e) { slot.replaceChildren(grid("", cell("", el("p", { text: e.message })))); return; }
     }
+    paintTarget();
     drawTop(slot, counter);
   }
 
@@ -893,6 +923,12 @@
   }
 
   function feedEmpty() {
+    if (S.feedEvent) {
+      return el("div", { class: "stack" }, grid("",
+        cell("btm", { style: "padding-top:28px" }, el("h2", { class: "display md", text: "Пока пусто." }),
+          el("p", { text: "На «" + S.feedEvent.title + "» ещё никто не ищет команду. Сними привязку — и увидишь всех, кто в поиске, или позови однокурсников на это мероприятие." }))),
+        el("button", { class: "btn", text: "Искать без мероприятия", onclick: () => setEvent(null) }));
+    }
     if (S.me.search_mode !== "all") {
       return el("div", { class: "stack" }, grid("",
         cell("btm", { style: "padding-top:28px" }, el("h2", { class: "display md", text: "Пусто." }),
@@ -945,6 +981,77 @@
   }
 
   // ---------------------------------------------------------------- мэтчи
+
+  // ------------------------------------------------------------- события
+
+  const MONTHS = ["января", "февраля", "марта", "апреля", "мая", "июня",
+                  "июля", "августа", "сентября", "октября", "ноября", "декабря"];
+
+  function humanDate(iso) {
+    if (!iso) return "";
+    const [, m, d] = iso.split("-");
+    return Number(d) + " " + MONTHS[Number(m) - 1];
+  }
+
+  function eventWhen(ev) {
+    const parts = [];
+    if (ev.deadline_on) parts.push("заявки до " + humanDate(ev.deadline_on));
+    if (ev.starts_on) parts.push("старт " + humanDate(ev.starts_on));
+    return parts.join(", ") || "даты уточняются";
+  }
+
+  function eventCard(ev) {
+    const active = (S.me.event_id || null) === ev.id;
+    const tags = [ev.city, ev.format, ev.team_size ? "команда " + ev.team_size : ""]
+      .filter(Boolean)
+      .map((t) => el("span", { class: "tag", text: t }));
+    return el("article", { class: "ecard" + (active ? " on" : "") },
+      el("p", { class: "k", text: eventWhen(ev) }),
+      el("h3", { class: "etitle", text: ev.title }),
+      ev.organizer ? el("p", { class: "sub", text: ev.organizer }) : null,
+      tags.length ? el("div", { class: "chips" }, tags) : null,
+      ev.about ? el("p", { class: "about", text: ev.about }) : null,
+      el("p", { class: "k", text: ev.seekers
+        ? "Ищут команду: " + ev.seekers
+        : "Здесь пока никто не ищет — будешь первым" }),
+      el("div", { class: "erow" },
+        el("button", {
+          class: "btn" + (active ? " white" : ""),
+          text: active ? "Не искать на это событие" : "Искать команду здесь",
+          onclick: () => setEvent(active ? null : ev.id),
+        }),
+        ev.url ? el("button", { class: "btn white sm", text: "Сайт",
+          onclick: () => P.openLink(ev.url) }) : null,
+      ),
+    );
+  }
+
+  async function renderEvents(root) {
+    const counter = el("p", { class: "n", text: "…" });
+    root.append(grid("gt g-bar bar",
+      cell("", el("p", { class: "brand", text: "Тиммейт." })),
+      cell("", el("p", { class: "kick", text: "События" })),
+      cell("pg", counter),
+    ));
+    const slot = el("div", { class: "stack" });
+    root.append(slot);
+    slot.append(el("p", { class: "sub", text: "Загружаем…" }));
+    let r;
+    try { r = await api("GET", "/api/events"); }
+    catch (e) { slot.textContent = ""; slot.append(el("p", { class: "sub", text: e.message })); return; }
+    S.events = r.items || [];
+    S.me.event_id = r.event_id || null;
+    counter.textContent = String(S.events.length);
+    slot.textContent = "";
+    if (!S.events.length) {
+      slot.append(el("p", { class: "sub", text: "Пока нет открытых мероприятий. Загляни позже — список обновляем вручную." }));
+      return;
+    }
+    slot.append(
+      el("p", { class: "sub", text: "Выбери мероприятие — и в ленте останутся те, кто идёт туда же." }),
+      ...S.events.map(eventCard),
+    );
+  }
 
   async function renderMatches(root) {
     const counter = el("p", { class: "n", text: String((S.me.stats || {}).matches || 0) });

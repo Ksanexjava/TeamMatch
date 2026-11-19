@@ -1,6 +1,6 @@
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import JSON, Boolean, DateTime, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import JSON, Boolean, Date, DateTime, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 class Base(DeclarativeBase):
@@ -132,3 +132,58 @@ class Consent(Base):
     account_id: Mapped[str] = mapped_column(String(64))
     version: Mapped[str] = mapped_column(String(20))
     accepted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Event(Base):
+    """Мероприятие: хакатон, кейс-чемпионат, олимпиада.
+
+    Заполняется руками через tools/, а не парсером: для пилота релевантных
+    событий два-пять в месяц, а поля «организатор» и «кто отвечает за бюджет»
+    парсер всё равно не достанет — их добывают в переписке.
+    """
+
+    __tablename__ = "events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    title: Mapped[str] = mapped_column(String(200))
+    organizer: Mapped[str] = mapped_column(String(120), default="")
+    url: Mapped[str] = mapped_column(String(500), default="")
+    city: Mapped[str] = mapped_column(String(100), default="")
+    format: Mapped[str] = mapped_column(String(40), default="")      # очно / онлайн / гибрид
+    team_size: Mapped[str] = mapped_column(String(20), default="")   # «3–5» — строкой, для показа
+    starts_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    deadline_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    about: Mapped[str] = mapped_column(Text, default="")
+    is_published: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    def to_dict(self, seekers: int = 0) -> dict:
+        return {
+            "id": self.id,
+            "title": self.title,
+            "organizer": self.organizer,
+            "url": self.url,
+            "city": self.city,
+            "format": self.format,
+            "team_size": self.team_size,
+            "starts_on": self.starts_on.isoformat() if self.starts_on else None,
+            "deadline_on": self.deadline_on.isoformat() if self.deadline_on else None,
+            "about": self.about,
+            "seekers": seekers,
+        }
+
+
+class ProfileEvent(Base):
+    """На какое мероприятие человек сейчас ищет команду. Пусто — ищет без цели.
+
+    Отдельная таблица, а не колонка в profiles: create_all создаёт новые таблицы
+    на боевой базе, но не добавляет колонки в существующие.
+    """
+
+    __tablename__ = "profile_events"
+
+    profile_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    event_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

@@ -12,7 +12,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import delete, func, or_, select
 
 from config import settings
-from db.models import Account, Consent, LinkCode, Profile, Swipe, UserSettings
+from db.models import Account, Consent, Event, LinkCode, Profile, ProfileEvent, Swipe, UserSettings
 from db.session import Session
 from messengers import ids
 
@@ -343,3 +343,89 @@ async def set_search_mode(user_id: str | int, mode: str) -> str:
             row.search_mode = mode
         await session.commit()
     return mode
+
+
+# Мероприятия и цель поиска
+
+
+async def list_events(include_past: bool = False) -> list[dict]:
+    """Опубликованные мероприятия с числом тех, кто ищет на них команду.
+
+    По умолчанию скрывает те, у которых прошёл и дедлайн, и дата начала:
+    в ленте мёртвые анонсы только мешают.
+    """
+    today = datetime.now(timezone.utc).date()
+    async with Session() as session:
+        rows = (
+            await session.execute(
+                select(Event).where(Event.is_published).order_by(
+                    Event.deadline_on.is_(None), Event.deadline_on, Event.starts_on
+                )
+            )
+        ).scalars().all()
+        counts = dict(
+            (
+                await session.execute(
+                    select(ProfileEvent.event_id, func.count())
+                    .where(ProfileEvent.event_id.is_not(None))
+                    .group_by(ProfileEvent.event_id)
+                )
+            ).all()
+        )
+    out = []
+    for ev in rows:
+        last_day = ev.starts_on or ev.deadline_on
+        if not include_past and last_day and last_day < today:
+            continue
+        out.append(ev.to_dict(seekers=int(counts.get(ev.id, 0))))
+    return out
+
+
+async def get_event(event_id: int | None) -> dict | None:
+    if not event_id:
+        return None
+    async with Session() as session:
+        ev = await session.get(Event, int(event_id))
+        if not ev or not ev.is_published:
+            return None
+        seekers = await session.scalar(
+            select(func.count()).select_from(ProfileEvent).where(ProfileEvent.event_id == ev.id)
+        )
+    return ev.to_dict(seekers=int(seekers or 0))
+
+
+async def get_target_event(user_id: str | int) -> int | None:
+    """id мероприятия, на которое человек ищет команду; None — ищет без цели."""
+    pid = await resolve_id(user_id)
+    async with Session() as session:
+        row = await session.get(ProfileEvent, pid)
+        return row.event_id if row else None
+
+
+async def set_target_event(user_id: str | int, event_id: int | None) -> int | None:
+    """Ставит или снимает цель поиска. Несуществующее мероприятие трактуем как «без цели»."""
+    pid = await resolve_id(user_id)
+    event_id = int(event_id) if event_id else None
+    async with Session() as session:
+        if event_id is not None:
+            ev = await session.get(Event, event_id)
+            if not ev or not ev.is_published:
+                event_id = None
+        row = await session.get(ProfileEvent, pid)
+        if row:
+            row.event_id = event_id
+        else:
+            session.add(ProfileEvent(profile_id=pid, event_id=event_id))
+        await session.commit()
+    return event_id
+
+
+async def ids_targeting(event_id: int) -> set[str]:
+    """Кто ищет команду на это мероприятие."""
+    async with Session() as session:
+        rows = (
+            await session.execute(
+                select(ProfileEvent.profile_id).where(ProfileEvent.event_id == int(event_id))
+            )
+        ).scalars().all()
+    return set(rows)

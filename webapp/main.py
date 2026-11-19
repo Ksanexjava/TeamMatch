@@ -106,6 +106,7 @@ async def me(user: WebAppUser = Depends(current_user)):
         "profile": None,
         "options": profiles.options(),
         "search_mode": await repo.get_search_mode(user.profile_id),
+        "event_id": await repo.get_target_event(user.profile_id),
         "stats": {"incoming_likes": 0, "matches": 0},
         "report_email": settings.support_email,
         "legal": {
@@ -213,8 +214,26 @@ async def delete_profile(user: WebAppUser = Depends(current_user)):
 
 @app.put("/api/settings")
 async def update_settings(payload: dict, user: WebAppUser = Depends(current_user)):
-    mode = await repo.set_search_mode(user.profile_id, str(payload.get("search_mode") or "all"))
-    return {"search_mode": mode}
+    out = {}
+    if "search_mode" in payload:
+        out["search_mode"] = await repo.set_search_mode(
+            user.profile_id, str(payload.get("search_mode") or "all")
+        )
+    if "event_id" in payload:
+        raw = payload.get("event_id")
+        out["event_id"] = await repo.set_target_event(user.profile_id, int(raw) if raw else None)
+    if not out:
+        out["search_mode"] = await repo.get_search_mode(user.profile_id)
+    return out
+
+
+@app.get("/api/events")
+async def events(user: WebAppUser = Depends(current_user)):
+    """Лента мероприятий. Заполняется руками, поэтому отдаём как есть."""
+    return {
+        "items": await repo.list_events(),
+        "event_id": await repo.get_target_event(user.profile_id),
+    }
 
 
 # Лента
@@ -233,9 +252,17 @@ async def feed(user: WebAppUser = Depends(current_user)):
     me_profile = await my_profile_or_404(user)
     mode = await repo.get_search_mode(user.profile_id)
     pool = _filter_pool(me_profile, await repo.list_active_profiles(), mode)
+    # Цель поиска сужает пул до тех, кто идёт на то же мероприятие. Человека
+    # без цели в событийный пул не затягиваем: он туда не собирался.
+    event_id = await repo.get_target_event(user.profile_id)
+    event = await repo.get_event(event_id)
+    if event:
+        targeting = await repo.ids_targeting(event["id"])
+        pool = [p for p in pool if p["user_id"] in targeting]
     items = build_feed(me_profile, pool, await repo.get_swiped_ids(user.profile_id))
     return {
         "search_mode": mode,
+        "event": event,
         "items": [
             {
                 "profile": profiles.card(item["profile"]),
