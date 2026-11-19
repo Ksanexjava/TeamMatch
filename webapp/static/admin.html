@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="light dark">
+  <title>Тиммейт — мероприятия</title>
+  <link rel="icon" href="/static/mark.png">
+  <link rel="stylesheet" href="/static/fonts/fonts.css?v=7">
+  <link rel="stylesheet" href="/static/app.css?v=7">
+  <style>
+    .wrap { max-width: 760px; margin: 0 auto; padding: 20px 18px 60px; }
+    .arow { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .arow .btn { width: auto; flex: 0 0 auto; }
+    .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .elist { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
+    .erecord {
+      border: 1px solid var(--line); border-radius: var(--r-block); padding: 14px 16px;
+      display: flex; flex-direction: column; gap: 7px;
+    }
+    .erecord.off { opacity: .55; }
+    .erecord .t { font-family: var(--display); font-weight: 900; font-size: 22px;
+      text-transform: uppercase; letter-spacing: -.5px; line-height: 1.05; }
+    .badge-off { background: var(--wash); border-radius: 7px; padding: 2px 8px; font-size: 13px; color: var(--mute); }
+    .badge-on { background: var(--blue-wash); border-radius: 7px; padding: 2px 8px; font-size: 13px; }
+    form.card { border: 1px solid var(--line); border-radius: var(--r-block); padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    @media (max-width: 560px) { .two { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1 class="brand" style="font-size:28px;margin-bottom:4px">Тиммейт.</h1>
+  <p class="sub" style="margin-bottom:18px">Мероприятия — то, что видят люди в ленте и в боте</p>
+
+  <section id="gate" class="field">
+    <label class="k" for="token">Токен редактора</label>
+    <input id="token" class="input" type="password" autocomplete="off" placeholder="ADMIN_TOKEN из .env">
+    <p class="sub" id="gate-msg"></p>
+    <button class="btn" id="enter">Войти</button>
+  </section>
+
+  <section id="app" class="hidden">
+    <form class="card" id="form" autocomplete="off">
+      <p class="k" id="form-title">Новое мероприятие</p>
+      <div class="field">
+        <label class="k" for="f-title">Название</label>
+        <input id="f-title" class="input" required maxlength="200" placeholder="Хакатон такой-то">
+      </div>
+      <div class="two">
+        <div class="field"><label class="k" for="f-organizer">Организатор</label>
+          <input id="f-organizer" class="input" maxlength="120"></div>
+        <div class="field"><label class="k" for="f-url">Ссылка на страницу</label>
+          <input id="f-url" class="input" maxlength="500" placeholder="https://"></div>
+      </div>
+      <div class="two">
+        <div class="field"><label class="k" for="f-deadline">Приём заявок до</label>
+          <input id="f-deadline" class="input" type="date"></div>
+        <div class="field"><label class="k" for="f-starts">Дата начала</label>
+          <input id="f-starts" class="input" type="date"></div>
+      </div>
+      <div class="two">
+        <div class="field"><label class="k" for="f-city">Город</label>
+          <input id="f-city" class="input" maxlength="100" placeholder="Новосибирск или Онлайн"></div>
+        <div class="field"><label class="k" for="f-format">Формат</label>
+          <input id="f-format" class="input" maxlength="40" placeholder="очно, онлайн, гибрид"></div>
+      </div>
+      <div class="field"><label class="k" for="f-team">Размер команды</label>
+        <input id="f-team" class="input" maxlength="20" placeholder="3–5"></div>
+      <div class="field"><label class="k" for="f-about">Описание</label>
+        <textarea id="f-about" class="input" maxlength="4000" placeholder="Кого ждут, какие роли нужны, что по призам"></textarea></div>
+      <label class="check"><input id="f-pub" type="checkbox" checked> Показывать людям</label>
+      <p class="sub" id="form-msg"></p>
+      <div class="arow">
+        <button class="btn" id="save" type="submit">Сохранить</button>
+        <button class="btn white" id="cancel" type="button">Отменить правку</button>
+      </div>
+    </form>
+    <div class="elist" id="list"></div>
+  </section>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var token = "";
+  var editing = null;
+
+  function api(method, path, body) {
+    var init = { method: method, headers: { "X-Admin-Token": token } };
+    if (body !== undefined) { init.headers["Content-Type"] = "application/json"; init.body = JSON.stringify(body); }
+    return fetch(path, init).then(function (r) {
+      return r.json().catch(function () { return null; }).then(function (data) {
+        if (!r.ok) throw new Error((data && data.detail) || ("Ошибка " + r.status));
+        return data;
+      });
+    });
+  }
+
+  function human(iso) {
+    if (!iso) return "";
+    var m = ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
+    var p = iso.split("-");
+    return Number(p[2]) + " " + m[Number(p[1]) - 1];
+  }
+
+  function fillForm(ev) {
+    editing = ev ? ev.id : null;
+    $("form-title").textContent = ev ? "Правим: " + ev.title : "Новое мероприятие";
+    $("f-title").value = ev ? ev.title : "";
+    $("f-organizer").value = ev ? ev.organizer || "" : "";
+    $("f-url").value = ev ? ev.url || "" : "";
+    $("f-deadline").value = ev ? ev.deadline_on || "" : "";
+    $("f-starts").value = ev ? ev.starts_on || "" : "";
+    $("f-city").value = ev ? ev.city || "" : "";
+    $("f-format").value = ev ? ev.format || "" : "";
+    $("f-team").value = ev ? ev.team_size || "" : "";
+    $("f-about").value = ev ? ev.about || "" : "";
+    $("f-pub").checked = ev ? !!ev.is_published : true;
+    $("form-msg").textContent = "";
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function record(ev) {
+    var box = document.createElement("div");
+    box.className = "erecord" + (ev.is_published ? "" : " off");
+
+    var when = document.createElement("p");
+    when.className = "k";
+    var parts = [];
+    if (ev.deadline_on) parts.push("заявки до " + human(ev.deadline_on));
+    if (ev.starts_on) parts.push("старт " + human(ev.starts_on));
+    when.textContent = parts.join(", ") || "даты не заданы";
+
+    var title = document.createElement("p");
+    title.className = "t";
+    title.textContent = ev.title;
+
+    var meta = document.createElement("p");
+    meta.className = "sub";
+    meta.textContent = [ev.organizer, ev.city, ev.format].filter(Boolean).join(", ");
+
+    var state = document.createElement("div");
+    state.className = "arow";
+    var tag = document.createElement("span");
+    tag.className = ev.is_published ? "badge-on" : "badge-off";
+    tag.textContent = ev.is_published ? "видно людям" : "скрыто";
+    var seek = document.createElement("span");
+    seek.className = "sub";
+    seek.textContent = "ищут команду: " + (ev.seekers || 0);
+    state.appendChild(tag); state.appendChild(seek);
+
+    var acts = document.createElement("div");
+    acts.className = "arow";
+    var edit = document.createElement("button");
+    edit.className = "btn white sm"; edit.textContent = "Править";
+    edit.onclick = function () { fillForm(ev); };
+    var toggle = document.createElement("button");
+    toggle.className = "btn white sm";
+    toggle.textContent = ev.is_published ? "Скрыть" : "Показать";
+    toggle.onclick = function () {
+      api("PUT", "/api/admin/events/" + ev.id, { title: ev.title, is_published: !ev.is_published })
+        .then(load).catch(function (e) { alert(e.message); });
+    };
+    var del = document.createElement("button");
+    del.className = "btn danger sm"; del.textContent = "Удалить";
+    del.onclick = function () {
+      if (!confirm("Удалить «" + ev.title + "»? У тех, кто выбрал его целью поиска, привязка снимется.")) return;
+      api("DELETE", "/api/admin/events/" + ev.id).then(load).catch(function (e) { alert(e.message); });
+    };
+    acts.appendChild(edit); acts.appendChild(toggle); acts.appendChild(del);
+
+    box.appendChild(when); box.appendChild(title);
+    if (meta.textContent) box.appendChild(meta);
+    box.appendChild(state); box.appendChild(acts);
+    return box;
+  }
+
+  function load() {
+    return api("GET", "/api/admin/events").then(function (r) {
+      var list = $("list");
+      list.textContent = "";
+      if (!r.items.length) {
+        var p = document.createElement("p");
+        p.className = "sub";
+        p.textContent = "Пока ни одного мероприятия. Добавь первое — оно сразу появится в мини-приложении.";
+        list.appendChild(p);
+        return;
+      }
+      r.items.forEach(function (ev) { list.appendChild(record(ev)); });
+    });
+  }
+
+  $("enter").onclick = function () {
+    token = $("token").value.trim();
+    if (!token) { $("gate-msg").textContent = "Введи токен"; return; }
+    $("gate-msg").textContent = "Проверяем…";
+    load().then(function () {
+      try { sessionStorage.setItem("adminToken", token); } catch (e) { /* приватный режим */ }
+      $("gate").classList.add("hidden");
+      $("app").classList.remove("hidden");
+    }).catch(function (e) { $("gate-msg").textContent = e.message; });
+  };
+
+  $("cancel").onclick = function () { fillForm(null); };
+
+  $("form").onsubmit = function (e) {
+    e.preventDefault();
+    var body = {
+      title: $("f-title").value.trim(),
+      organizer: $("f-organizer").value.trim(),
+      url: $("f-url").value.trim(),
+      deadline_on: $("f-deadline").value,
+      starts_on: $("f-starts").value,
+      city: $("f-city").value.trim(),
+      format: $("f-format").value.trim(),
+      team_size: $("f-team").value.trim(),
+      about: $("f-about").value.trim(),
+      is_published: $("f-pub").checked
+    };
+    if (!body.title) { $("form-msg").textContent = "Название обязательно"; return; }
+    $("save").disabled = true;
+    var req = editing ? api("PUT", "/api/admin/events/" + editing, body) : api("POST", "/api/admin/events", body);
+    req.then(function () { fillForm(null); return load(); })
+      .catch(function (err) { $("form-msg").textContent = err.message; })
+      .then(function () { $("save").disabled = false; });
+  };
+
+  try {
+    var saved = sessionStorage.getItem("adminToken");
+    if (saved) { $("token").value = saved; $("enter").click(); }
+  } catch (e) { /* приватный режим */ }
+})();
+</script>
+</body>
+</html>

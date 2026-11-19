@@ -429,3 +429,80 @@ async def ids_targeting(event_id: int) -> set[str]:
             )
         ).scalars().all()
     return set(rows)
+
+
+# Редактор мероприятий
+
+
+async def admin_list_events() -> list[dict]:
+    """Все мероприятия, включая снятые с публикации и прошедшие — для редактора."""
+    async with Session() as session:
+        rows = (
+            await session.execute(
+                select(Event).order_by(Event.deadline_on.is_(None), Event.deadline_on.desc(), Event.id.desc())
+            )
+        ).scalars().all()
+        counts = dict(
+            (
+                await session.execute(
+                    select(ProfileEvent.event_id, func.count())
+                    .where(ProfileEvent.event_id.is_not(None))
+                    .group_by(ProfileEvent.event_id)
+                )
+            ).all()
+        )
+    return [
+        {**ev.to_dict(seekers=int(counts.get(ev.id, 0))), "is_published": ev.is_published}
+        for ev in rows
+    ]
+
+
+EVENT_FIELDS = ("title", "organizer", "url", "city", "format", "team_size", "about")
+EVENT_DATES = ("starts_on", "deadline_on")
+
+
+def _apply_event_fields(ev: Event, data: dict) -> None:
+    for f in EVENT_FIELDS:
+        if f in data:
+            setattr(ev, f, str(data[f] or "").strip())
+    for f in EVENT_DATES:
+        if f in data:
+            raw = str(data[f] or "").strip()
+            setattr(ev, f, datetime.strptime(raw, "%Y-%m-%d").date() if raw else None)
+    if "is_published" in data:
+        ev.is_published = bool(data["is_published"])
+
+
+async def create_event(data: dict) -> dict:
+    async with Session() as session:
+        ev = Event(title="")
+        _apply_event_fields(ev, data)
+        session.add(ev)
+        await session.commit()
+        return {**ev.to_dict(), "is_published": ev.is_published}
+
+
+async def update_event(event_id: int, data: dict) -> dict | None:
+    async with Session() as session:
+        ev = await session.get(Event, int(event_id))
+        if not ev:
+            return None
+        _apply_event_fields(ev, data)
+        await session.commit()
+        return {**ev.to_dict(), "is_published": ev.is_published}
+
+
+async def delete_event(event_id: int) -> bool:
+    """Удаляет мероприятие и снимает его как цель поиска у всех, кто его выбрал."""
+    async with Session() as session:
+        ev = await session.get(Event, int(event_id))
+        if not ev:
+            return False
+        await session.execute(
+            ProfileEvent.__table__.update()
+            .where(ProfileEvent.event_id == ev.id)
+            .values(event_id=None)
+        )
+        await session.delete(ev)
+        await session.commit()
+        return True

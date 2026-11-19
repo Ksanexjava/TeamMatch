@@ -17,7 +17,7 @@ engine = create_async_engine(settings.database_url, pool_pre_ping=True)
 Session = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
 TEST_PROFILES_PATH = Path(__file__).resolve().parent.parent / "data" / "test_profiles.json"
-TEST_EVENTS_PATH = Path(__file__).resolve().parent.parent / "data" / "test_events.json"
+EVENTS_PATH = Path(__file__).resolve().parent.parent / "data" / "events.json"
 
 async def init_db(seed: bool = True) -> None:
     """Создаёт таблицы (если их нет) и один раз загружает тестовые анкеты.
@@ -69,17 +69,18 @@ async def seed_test_profiles() -> None:
 
 
 async def seed_events() -> None:
-    """Загружает data/test_events.json, если таблица мероприятий пуста.
+    """Разовая загрузка мероприятий из data/events.json, если таблица пуста.
 
-    В отличие от анкет, события грузятся всегда: без них лента пустая,
-    а подбор под мероприятие проверить нечем. Заполняются руками — парсера нет.
+    Файл нужен для первичного наполнения и переноса между стендами.
+    Обычный путь — редактор на /admin: там события заводятся руками,
+    с реальными датами и ссылками. Выдуманных мероприятий в файле быть не должно.
     """
-    if not TEST_EVENTS_PATH.exists():
+    if not EVENTS_PATH.exists():
         return
     async with Session() as session:
         if await session.scalar(select(func.count()).select_from(Event)):
             return
-        raw = json.loads(TEST_EVENTS_PATH.read_text(encoding="utf-8"))
+        raw = json.loads(EVENTS_PATH.read_text(encoding="utf-8"))
         for item in raw:
             session.add(
                 Event(

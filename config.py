@@ -35,6 +35,7 @@ class Settings:
     max_bot_username: str
     consent_version: str
     support_email: str
+    admin_token: str
 
     @property
     def legal_base_url(self) -> str:
@@ -72,4 +73,7 @@ settings = Settings(
     # Редакция согласия на обработку ПД. Меняется вместе с текстом webapp/static/legal/consent.html.
     consent_version=os.environ.get("CONSENT_VERSION", "2026-11-17"),
     support_email=os.environ.get("SUPPORT_EMAIL", "m.mikhailov2@g.nsu.ru"),
+    # Пусто — редактор мероприятий выключен целиком. Так он не окажется
+    # открытым по недосмотру: включается только явно заданным токеном.
+    admin_token=os.environ.get("ADMIN_TOKEN", "").strip(),
 )
