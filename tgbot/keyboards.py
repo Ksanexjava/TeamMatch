@@ -25,6 +25,9 @@ MENU_SHOW = "menu:show"
 MENU_DELETE = "menu:delete"
 MENU_DELETE_CONFIRM = "menu:delete_confirm"
 MENU_LINK = "menu:link"
+MENU_EVENTS = "menu:events"
+EVENT_PICK = "ev:pick"       # ev:pick:<id>
+EVENT_CLEAR = "ev:clear"
 
 FEED_LIKE = "feed:like"
 FEED_MSG = "feed:msg"
@@ -73,7 +76,7 @@ def _url(text: str, url: str):
 def _app_row() -> list:
     """Кнопка мини-приложения — только если оно подключено (WEBAPP_URL)."""
     from aiogram.types import InlineKeyboardButton
-    if not settings.webapp_url:
+    if not settings.webapp_url or not settings.telegram_webapp_button:
         return []
     return [InlineKeyboardButton(text="📱 Открыть приложение", web_app=WebAppInfo(url=settings.webapp_url + "/"))]
 
@@ -91,6 +94,7 @@ def consent_kb() -> InlineKeyboardMarkup:
 def main_menu_kb() -> InlineKeyboardMarkup:
     rows = [
         [_btn("🔍 Искать сокомандников", MENU_FEED)],
+        [_btn("📅 Мероприятия", MENU_EVENTS)],
         [_btn("🤝 Мои мэтчи", MENU_MATCHES), _btn("👤 Моя анкета", MENU_PROFILE)],
         [_btn("⚙️ Настройки поиска", MENU_SETTINGS)],
         [_btn("⚠️ Пожаловаться", MENU_REPORT)],
@@ -112,8 +116,42 @@ def feed_empty_kb() -> InlineKeyboardMarkup:
     return _kb([_btn("🔄 Посмотреть пропущенные снова", FEED_AGAIN)], [_btn("← В меню", MENU_BACK)])
 
 
-def after_match_kb() -> InlineKeyboardMarkup:
-    return _kb([_btn("🔍 Смотреть дальше", FEED_NEXT)], [_btn("← В меню", MENU_BACK)])
+def after_match_kb(write_url: str | None = None) -> InlineKeyboardMarkup:
+    rows = [[_url("✉️ Написать", write_url)]] if write_url else []
+    rows += [[_btn("🔍 Смотреть дальше", FEED_NEXT)], [_btn("← В меню", MENU_BACK)]]
+    return _kb(*rows)
+
+
+def matches_kb(write: list[tuple[str, str]]) -> InlineKeyboardMarkup:
+    """Под списком мэтчей: «Написать» тем, у кого есть Telegram."""
+    rows = [[_url(f"✉️ Написать: {name}", url)] for name, url in write[:10]]
+    rows.append([_btn("← В меню", MENU_BACK)])
+    return _kb(*rows)
+
+
+def events_kb(events: list[dict], current: int | None) -> InlineKeyboardMarkup:
+    rows = []
+    for i, ev in enumerate(events, 1):
+        title = ev["title"] if len(ev["title"]) <= 26 else ev["title"][:25] + "…"
+        mark = "✅" if ev["id"] == current else "🎯"
+        row = [_btn(f"{mark} {i}. {title}", f"{EVENT_PICK}:{ev['id']}")]
+        if ev.get("url"):
+            row.append(_url("🔗 Сайт", ev["url"]))
+        rows.append(row)
+    if current:
+        rows.append([_btn("✖️ Снять цель — искать среди всех", EVENT_CLEAR)])
+    rows.append([_btn("🔍 Открыть ленту", MENU_FEED)])
+    rows.append([_btn("← В меню", MENU_BACK)])
+    return _kb(*rows)
+
+
+def event_set_kb() -> InlineKeyboardMarkup:
+    return _kb([_btn("🔍 Смотреть ленту", MENU_FEED)], [_btn("📅 Мероприятия", MENU_EVENTS)], [_btn("← В меню", MENU_BACK)])
+
+
+def event_empty_kb() -> InlineKeyboardMarkup:
+    return _kb([_btn("✖️ Снять цель — искать среди всех", EVENT_CLEAR)],
+               [_btn("📅 Другие мероприятия", MENU_EVENTS)], [_btn("← В меню", MENU_BACK)])
 
 
 def search_settings_kb(current: str) -> InlineKeyboardMarkup:

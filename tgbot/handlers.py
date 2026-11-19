@@ -6,6 +6,7 @@
 """
 
 import logging
+import re
 
 from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramBadRequest
@@ -16,7 +17,8 @@ from aiogram.types import CallbackQuery, InlineKeyboardMarkup, Message, User
 from bot import keyboards as max_kb
 from bot import media as max_media
 from bot.keyboards import DEGREES, MED_DEGREES, ROLES
-from core.interactions import is_match, matches_for
+from config import settings
+from core.interactions import incoming_likes, is_match, matches_for
 from core.interests import LOOKING_FOR_OPTIONS, normalize_interests
 from core.moderation import has_ads, is_clean, is_valid_contact, normalize_github
 from core.recommendations import build_feed, explain
@@ -49,9 +51,9 @@ async def send(bot: Bot, chat_id: int, text: str, markup: InlineKeyboardMarkup |
     photo = (profile or {}).get("photo") or ""
     if photo.startswith("tgfile:"):
         try:
-            await bot.send_photo(chat_id, photo[len("tgfile:"):], caption=text[:CAPTION_LIMIT], reply_markup=markup)
-            if len(text) > CAPTION_LIMIT:
-                await bot.send_message(chat_id, text[CAPTION_LIMIT:])
+            # Одним сообщением: второе сообщение-«хвост» забрало бы у карточки кнопки.
+            caption = text if len(text) <= CAPTION_LIMIT else text[:CAPTION_LIMIT - 1] + "…"
+            await bot.send_photo(chat_id, photo[len("tgfile:"):], caption=caption, reply_markup=markup)
             return
         except TelegramBadRequest:
             pass  # фото удалено или недоступно — покажем текстом
@@ -77,9 +79,27 @@ async def drop_buttons(cb: CallbackQuery) -> None:
 
 # ---------------------------------------------------------------- старт и меню
 
+async def menu_text(account_id: str) -> str:
+    """Главное меню + входящие лайки и текущая цель — как плашки в мини-приложении."""
+    lines = [texts.MAIN_MENU]
+    me = await repo.resolve_id(account_id)
+    likes = await repo.get_likes_involving(me)
+    n = len(incoming_likes(likes, me, await repo.get_swiped_ids(me)))
+    if n:
+        lines.append(texts.MENU_INCOMING.format(n=n))
+    event = await repo.get_event(await repo.get_target_event(me))
+    if event:
+        lines.append(texts.MENU_TARGET.format(title=event["title"]))
+    return "\n\n".join(lines)
+
+
+async def send_menu(bot: Bot, user: User) -> None:
+    await bot.send_message(user.id, await menu_text(uid(user)), reply_markup=kb.main_menu_kb())
+
+
 async def greet(bot: Bot, user: User) -> None:
     if await repo.has_profile(uid(user)):
-        await bot.send_message(user.id, texts.MAIN_MENU, reply_markup=kb.main_menu_kb())
+        await send_menu(bot, user)
     else:
         await bot.send_message(user.id, texts.WELCOME, reply_markup=kb.consent_kb())
 
@@ -88,6 +108,10 @@ async def greet(bot: Bot, user: User) -> None:
 async def on_start(message: Message, command: CommandObject, state: FSMContext) -> None:
     await state.clear()
     payload = command.args or ""
+    if payload.startswith("event-"):
+        # https://t.me/<бот>?start=event-<id> — кнопка «Найти команду» под анонсом
+        await start_with_event(message.bot, message.from_user, payload[len("event-"):], state)
+        return
     if payload.startswith("link-"):
         # https://t.me/<бот>?start=link-<код> — кнопка «Открыть в Telegram» из бота MAX
         await redeem(message.bot, message.from_user, payload[len("link-"):], state)
@@ -124,7 +148,7 @@ async def on_report(cb: CallbackQuery) -> None:
 async def on_menu(cb: CallbackQuery, state: FSMContext) -> None:
     await cb.answer()
     await state.clear()
-    await show(cb, texts.MAIN_MENU, kb.main_menu_kb())
+    await show(cb, await menu_text(uid(cb.from_user)), kb.main_menu_kb())
 
 
 @router.callback_query(F.data == kb.MENU_START)
@@ -161,8 +185,9 @@ TEXT_FIELDS = {"name", "university", "direction", "city", "about", "github", "us
 
 
 async def start_form(bot: Bot, user: User, state: FSMContext) -> None:
+    pending = (await state.get_data()).get("pending_event")  # пришёл по ссылке мероприятия
     await state.clear()
-    await state.update_data(tg_username=user.username or "", first_name=user.first_name or "")
+    await state.update_data(tg_username=user.username or "", first_name=user.first_name or "", pending_event=pending)
     await ask(bot, user.id, "name", state)
 
 
@@ -379,11 +404,16 @@ async def step_save_force(cb: CallbackQuery, state: FSMContext) -> None:
 
 async def save_new(cb: CallbackQuery, state: FSMContext) -> None:
     data = await state.get_data()
-    await repo.save_profile(uid(cb.from_user), data)
+    me = uid(cb.from_user)
+    await repo.save_profile(me, data)
     await state.clear()
     await drop_buttons(cb)
     await cb.bot.send_message(cb.from_user.id, texts.PROFILE_SAVED)
-    await cb.bot.send_message(cb.from_user.id, texts.MAIN_MENU, reply_markup=kb.main_menu_kb())
+    if data.get("pending_event") and await repo.set_target_event(me, data["pending_event"]):
+        event = await repo.get_event(data["pending_event"])
+        await cb.bot.send_message(cb.from_user.id, texts.EVENT_SET.format(title=event["title"]), reply_markup=kb.event_set_kb())
+        return
+    await send_menu(cb.bot, cb.from_user)
 
 
 @router.callback_query(Form.confirm, F.data == kb.FORM_RESTART)
@@ -507,8 +537,18 @@ async def show_next(bot: Bot, chat_id: int, account_id: str) -> None:
         return
     mode = await repo.get_search_mode(account_id)
     pool = filter_pool(me, await repo.list_active_profiles(), mode)
+    # Цель поиска сужает пул до тех, кто идёт на то же мероприятие (как в мини-приложении).
+    event = await repo.get_event(await repo.get_target_event(account_id))
+    if event:
+        targeting = await repo.ids_targeting(event["id"])
+        pool = [p for p in pool if p["user_id"] in targeting]
     feed = build_feed(me, pool, await repo.get_swiped_ids(account_id))
     if not feed:
+        if event and not await repo.count_skips(account_id):
+            link = await event_link(bot, event["id"])
+            await bot.send_message(chat_id, texts.EVENT_FEED_EMPTY.format(title=event["title"], link=link),
+                                   reply_markup=kb.event_empty_kb())
+            return
         if mode != "all":
             await bot.send_message(chat_id, texts.EMPTY_BY_FILTER.format(label=texts.SEARCH_LABELS[mode]),
                                    reply_markup=kb.settings_hint_kb())
@@ -520,7 +560,10 @@ async def show_next(bot: Bot, chat_id: int, account_id: str) -> None:
             await bot.send_message(chat_id, texts.FEED_EMPTY, reply_markup=kb.main_menu_kb())
         return
     top = feed[0]
-    await send(bot, chat_id, card_text(top), kb.feed_card_kb(top["profile"]["user_id"]), top["profile"])
+    text = card_text(top)
+    if event:
+        text = texts.EVENT_CARD_LINE.format(title=event["title"]) + "\n\n" + text
+    await send(bot, chat_id, text, kb.feed_card_kb(top["profile"]["user_id"]), top["profile"])
 
 
 async def register_like(account_id: str, target_id: str, message: str = "") -> tuple[bool, dict | None]:
@@ -551,10 +594,18 @@ async def register_like(account_id: str, target_id: str, message: str = "") -> t
     return matched, partner
 
 
+async def write_url(partner: dict) -> str | None:
+    """Ссылка «Написать» в Telegram — если у человека есть Telegram и в контакте его ник."""
+    m = TG_NICK.match((partner.get("username") or "").strip())
+    if not m or "tg" not in await repo.profile_platforms(partner["user_id"]):
+        return None
+    return f"https://t.me/{m.group(1)}"
+
+
 async def after_swipe(bot: Bot, chat_id: int, account_id: str, matched: bool, partner: dict | None) -> None:
     if matched and partner:
         await send(bot, chat_id, texts.NEW_MATCH + texts.profile_card(partner, show_contact=True),
-                   kb.after_match_kb(), partner)
+                   kb.after_match_kb(await write_url(partner)), partner)
     else:
         await show_next(bot, chat_id, account_id)
 
@@ -636,11 +687,15 @@ async def on_matches(cb: CallbackQuery) -> None:
         await show(cb, texts.NO_MATCHES, kb.back_kb())
         return
     lines = ["🤝 Твои мэтчи:\n"]
+    write: list[tuple[str, str]] = []
     for pid in partner_ids:
         p = await repo.get_profile(pid)
         if p:
             lines.append(f"• {p['name']} ({p.get('role') or '—'}) — {p.get('username') or '—'}")
-    await show(cb, "\n".join(lines), kb.back_kb())
+            url = await write_url(p)
+            if url:
+                write.append((p["name"], url))
+    await show(cb, "\n".join(lines), kb.matches_kb(write))
 
 
 # ---------------------------------------------------------------- настройки поиска
@@ -675,7 +730,7 @@ async def redeem(bot: Bot, user: User, code: str, state: FSMContext, replace: bo
         return
     await state.clear()
     await bot.send_message(user.id, texts.LINK_DONE)
-    await bot.send_message(user.id, texts.MAIN_MENU, reply_markup=kb.main_menu_kb())
+    await send_menu(bot, user)
 
 
 @router.callback_query(F.data == kb.LINK_START)
@@ -728,6 +783,88 @@ async def on_link_code_issue(cb: CallbackQuery) -> None:
     code, _ = await repo.create_link_code(me)
     await drop_buttons(cb)
     await cb.bot.send_message(cb.from_user.id, texts.LINK_CODE.format(code=code), reply_markup=kb.link_code_kb(code))
+
+
+# ---------------------------------------------------------------- мероприятия
+
+TG_NICK = re.compile(r"^(?:тг:?\s*|tg:?\s*|telegram:?\s*)?@([A-Za-z][A-Za-z0-9_]{4,31})$", re.IGNORECASE)
+
+
+async def event_link(bot: Bot, event_id: int) -> str:
+    """Ссылка, по которой человек сразу попадает в подбор на мероприятие."""
+    username = settings.telegram_bot_username
+    if not username:
+        try:
+            username = (await bot.me()).username
+        except Exception:
+            username = ""
+    return f"https://t.me/{username}?start=event-{event_id}" if username else ""
+
+
+async def events_screen(account_id: str) -> tuple[str, InlineKeyboardMarkup]:
+    events = (await repo.list_events())[:10]
+    current = await repo.get_target_event(account_id)
+    if not events:
+        return texts.EVENTS_EMPTY, kb.events_kb([], current)
+    body = "\n\n".join(texts.event_card(ev, i, ev["id"] == current) for i, ev in enumerate(events, 1))
+    return f"{texts.EVENTS_TITLE}\n\n{body}", kb.events_kb(events, current)
+
+
+@router.message(Command("events"))
+async def cmd_events(message: Message, state: FSMContext) -> None:
+    await state.clear()
+    text, markup = await events_screen(uid(message.from_user))
+    await message.answer(text, reply_markup=markup, disable_web_page_preview=True)
+
+
+@router.callback_query(F.data == kb.MENU_EVENTS)
+async def on_events(cb: CallbackQuery, state: FSMContext) -> None:
+    await cb.answer()
+    await state.clear()
+    text, markup = await events_screen(uid(cb.from_user))
+    await drop_buttons(cb)
+    await cb.bot.send_message(cb.from_user.id, text, reply_markup=markup, disable_web_page_preview=True)
+
+
+@router.callback_query(F.data.startswith(kb.EVENT_PICK + ":"))
+async def on_event_pick(cb: CallbackQuery) -> None:
+    me = uid(cb.from_user)
+    if not await repo.has_profile(me):
+        await cb.answer()
+        await show(cb, texts.NO_PROFILE)
+        return
+    event_id = await repo.set_target_event(me, int(cb.data.split(":", 2)[2]))
+    if not event_id:
+        await cb.answer()
+        await show(cb, texts.EVENT_NOT_FOUND, kb.event_set_kb())
+        return
+    event = await repo.get_event(event_id)
+    await cb.answer("🎯 Цель выбрана")
+    await show(cb, texts.EVENT_SET.format(title=event["title"]), kb.event_set_kb())
+
+
+@router.callback_query(F.data == kb.EVENT_CLEAR)
+async def on_event_clear(cb: CallbackQuery) -> None:
+    await repo.set_target_event(uid(cb.from_user), None)
+    await cb.answer()
+    await show(cb, texts.EVENT_CLEARED, kb.event_set_kb())
+
+
+async def start_with_event(bot: Bot, user: User, raw_id: str, state: FSMContext) -> None:
+    event = await repo.get_event(int(raw_id)) if raw_id.isdigit() else None
+    if event is None:
+        await bot.send_message(user.id, texts.EVENT_NOT_FOUND)
+        await greet(bot, user)
+        return
+    me = uid(user)
+    if await repo.has_profile(me):
+        await repo.set_target_event(me, event["id"])
+        await bot.send_message(user.id, texts.EVENT_SET.format(title=event["title"]), reply_markup=kb.event_set_kb())
+        return
+    # Анкеты ещё нет: запомним цель и поставим её сразу после сохранения анкеты.
+    await state.update_data(pending_event=event["id"])
+    await bot.send_message(user.id, texts.EVENT_PENDING.format(title=event["title"]))
+    await bot.send_message(user.id, texts.WELCOME, reply_markup=kb.consent_kb())
 
 
 # ---------------------------------------------------------------- всё остальное

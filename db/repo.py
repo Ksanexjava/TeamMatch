@@ -235,7 +235,7 @@ async def set_active(user_id: str | int, is_active: bool) -> None:
 
 
 async def delete_profile(user_id: str | int) -> None:
-    """Удалить анкету, свайпы, настройки, привязки и журнал согласий (152-ФЗ, ст. 21).
+    """Удалить анкету, свайпы, настройки, цель поиска, привязки и журнал согласий (152-ФЗ, ст. 21).
 
     Анкета общая для всех мессенджеров, поэтому удаляется везде сразу.
     """
@@ -249,6 +249,8 @@ async def delete_profile(user_id: str | int) -> None:
         await session.execute(delete(Account).where(Account.profile_id == pid))
         await session.execute(delete(LinkCode).where(LinkCode.profile_id == pid))
         await session.execute(delete(Consent).where(Consent.profile_id == pid))
+        # Цель поиска (мероприятие) — тоже данные человека; иначе удалённый остаётся в счётчике «ищут команду».
+        await session.execute(delete(ProfileEvent).where(ProfileEvent.profile_id == pid))
         await session.commit()
 
 

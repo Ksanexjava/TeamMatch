@@ -9,12 +9,13 @@ from datetime import datetime, timezone
 
 from aiogram import Bot
 from aiogram.client.session.base import BaseSession
-from aiogram.methods import SendMessage, SendPhoto
+from aiogram.methods import AnswerCallbackQuery, EditMessageReplyMarkup, EditMessageText, GetMe, SendMessage, SendPhoto
 from aiogram.types import CallbackQuery, Chat, Message, Update, User
 
 from db import repo
 from db.session import init_db
 from tgbot.main import build_dispatcher
+from tgbot.ui import attach_bot
 
 BOT_USER = User(id=42, is_bot=True, first_name="Тиммейт", username="teammate_test_bot")
 
@@ -27,6 +28,8 @@ class FakeSession(BaseSession):
 
     async def make_request(self, bot, method, timeout=None):
         self.calls.append(method)
+        if isinstance(method, GetMe):
+            return BOT_USER
         if isinstance(method, (SendMessage, SendPhoto)):
             self._id += 1
             return Message(
@@ -63,6 +66,7 @@ class Chatter:
         self.session = FakeSession()
         self.bot = Bot(token="42:TEST", session=self.session)
         self.dp = _dispatcher()
+        attach_bot(self.bot, self.dp)
         self._n = 0
 
     def _upd(self, **kw) -> Update:
@@ -74,8 +78,8 @@ class Chatter:
                       chat=Chat(id=self.user.id, type="private"), from_user=self.user, text=text)
         await self.dp.feed_update(self.bot, self._upd(message=msg))
 
-    async def press(self, data: str):
-        msg = Message(message_id=self.session._id, date=datetime.now(timezone.utc),
+    async def press(self, data: str, message_id: int | None = None):
+        msg = Message(message_id=message_id or self.session._id, date=datetime.now(timezone.utc),
                       chat=Chat(id=self.user.id, type="private"), from_user=BOT_USER, text="…")
         cb = CallbackQuery(id=str(self._n), from_user=self.user, chat_instance="x", data=data, message=msg)
         await self.dp.feed_update(self.bot, self._upd(callback_query=cb))
@@ -199,5 +203,113 @@ def test_duplicate_contact_warns_before_second_profile():
         assert await repo.get_profile("tg:9004") is None
         await c.press("form:save_force")
         assert await repo.get_profile("tg:9004") is not None
+
+    run(scenario())
+
+
+def texts_of(c: "Chatter") -> list[str]:
+    """Всё, что бот отправил или во что отредактировал сообщения."""
+    out = []
+    for m in c.session.calls:
+        if isinstance(m, (SendMessage, EditMessageText)):
+            out.append(m.text or "")
+        elif isinstance(m, SendPhoto):
+            out.append(m.caption or "")
+    return out
+
+
+def test_events_in_telegram():
+    async def scenario():
+        await init_db()
+        ev = await repo.create_event({"title": "Тест-хакатон", "starts_on": "2027-01-20", "deadline_on": "2027-01-10",
+                                      "format": "онлайн", "team_size": "3–5", "url": "https://example.com/hack"})
+        ev2 = await repo.create_event({"title": "Кейс-чемп", "deadline_on": "2027-02-01"})
+
+        # Новичок приходит по ссылке из анонса: цель ставится сразу после анкеты
+        c = Chatter(9101, username="anya_events")
+        await c.say(f"/start event-{ev['id']}")
+        assert any("подберу людей на «Тест-хакатон»" in t for t in texts_of(c))
+        await fill_form(c, "@anya_events")
+        assert "Цель: Тест-хакатон" in c.last_text()
+        assert await repo.get_target_event("tg:9101") == ev["id"]
+
+        # На мероприятие больше никто не ищет — заглушка со ссылкой-приглашением
+        await c.press("menu:feed")
+        assert "пока никто, кроме тебя" in c.last_text()
+        assert f"t.me/teammate_test_bot?start=event-{ev['id']}" in c.last_text()
+
+        # Второй человек выбирает то же мероприятие через список
+        d = Chatter(9102, username="dima_events")
+        await d.press("consent:yes")
+        await fill_form(d, "@dima_events")
+        await d.press("menu:events")
+        assert "Тест-хакатон" in d.last_text() and "Ищут команду: 1" in d.last_text()
+        assert f"ev:pick:{ev2['id']}" in d.buttons()
+        await d.press(f"ev:pick:{ev['id']}")
+        assert await repo.get_target_event("tg:9102") == ev["id"]
+
+        # Теперь у первого в ленте только он — с пометкой цели
+        await c.press("menu:feed")
+        assert c.last_text().startswith("🎯 Тест-хакатон") and "Лёша" in c.last_text()
+
+        # Входящий лайк виден в главном меню; после мэтча есть «Написать» в Telegram
+        like = next(b for b in c.buttons() if b.startswith("feed:like:"))
+        await c.press(like)
+        await d.press("menu:back")
+        assert any("Тебя лайкнули: 1" in t for t in texts_of(d))
+        await d.press("menu:feed")
+        await d.press(next(b for b in d.buttons() if b.startswith("feed:like:")))
+        assert "новый мэтч" in d.last_text()
+        urls = [b.url for row in d.last_sent().reply_markup.inline_keyboard for b in row if b.url]
+        assert "https://t.me/anya_events" in urls
+
+        # Снять цель
+        await d.press("ev:clear")
+        assert await repo.get_target_event("tg:9102") is None
+
+        # Удаление анкеты стирает и цель поиска — удалённый не висит в счётчике
+        await repo.delete_profile("tg:9101")
+        assert "tg:9101" not in await repo.ids_targeting(ev["id"])
+
+    run(scenario())
+
+
+def test_event_link_to_unknown_event():
+    async def scenario():
+        await init_db()
+        c = Chatter(9103)
+        await c.say("/start event-999999")
+        assert any("уже прошло или снято" in t for t in texts_of(c))
+        assert "152-ФЗ" in c.last_text()  # дальше — обычное приветствие
+
+    run(scenario())
+
+
+def test_only_latest_message_keeps_buttons():
+    async def scenario():
+        await init_db()
+        c = Chatter(9201, username="lag_user")
+        await c.say("/start")
+        await fill_form(c, "@lag_user")
+        first_menu = c.session._id
+
+        # Двойной /start (лаг сети): у первого меню кнопки снимаются
+        await c.say("/start")
+        second_menu = c.session._id
+        assert second_menu > first_menu
+        dropped = [m for m in c.session.calls if isinstance(m, EditMessageReplyMarkup) and m.reply_markup is None]
+        assert any(m.message_id == first_menu for m in dropped)
+
+        # Нажатие на старое меню не выполняется: «меню устарело», новых сообщений нет
+        sent_before = len(c.sent())
+        await c.press("menu:feed", message_id=first_menu)
+        assert len(c.sent()) == sent_before
+        answers = [m for m in c.session.calls if isinstance(m, AnswerCallbackQuery)]
+        assert "устарело" in (answers[-1].text or "")
+
+        # Двойной тап по актуальному меню: выполняется один раз
+        sent_before = len(c.sent())
+        await asyncio.gather(c.press("menu:feed", message_id=second_menu), c.press("menu:feed", message_id=second_menu))
+        assert len(c.sent()) == sent_before + 1
 
     run(scenario())

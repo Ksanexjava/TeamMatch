@@ -31,7 +31,7 @@ async def call(method: str, payload: dict | None = None, timeout: float = 15):
 
 
 def open_app_markup(text: str = "Открыть Тиммейт", start_param: str = "") -> dict | None:
-    if not settings.webapp_url:
+    if not settings.webapp_url or not settings.telegram_webapp_button:
         return None
     url = settings.webapp_url + "/"
     if start_param:

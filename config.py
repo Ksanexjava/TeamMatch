@@ -36,6 +36,7 @@ class Settings:
     consent_version: str
     support_email: str
     admin_token: str
+    telegram_webapp_button: bool
 
     @property
     def legal_base_url(self) -> str:
@@ -76,4 +77,7 @@ settings = Settings(
     # Пусто — редактор мероприятий выключен целиком. Так он не окажется
     # открытым по недосмотру: включается только явно заданным токеном.
     admin_token=os.environ.get("ADMIN_TOKEN", "").strip(),
+    # 0 — Telegram-бот не показывает кнопку мини-приложения (например, пока оно
+    # недоступно части пользователей) и работает только кнопками в чате.
+    telegram_webapp_button=os.environ.get("TELEGRAM_WEBAPP_BUTTON", "1") != "0",
 )

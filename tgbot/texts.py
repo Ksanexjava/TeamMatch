@@ -21,6 +21,7 @@ WELCOME = (
 HELP = (
     "Команды:\n"
     "/start — начать или вернуться в меню\n"
+    "/events — мероприятия: искать команду на конкретное\n"
     "/profile — моя анкета\n"
     "/link — подключиться к анкете из MAX по коду\n"
     "/cancel — прервать заполнение анкеты\n"
@@ -80,3 +81,52 @@ DUPLICATE_FOUND = (
     "Чтобы не было двух анкет, подключи её: в MAX открой Тиммейт → «Моя анкета» → «Подключить Telegram» "
     "и пришли сюда код. Если это не твоя анкета — сохрани свою."
 )
+
+# Мероприятия: цель поиска сужает ленту до тех, кто идёт туда же
+EVENTS_TITLE = (
+    "📅 Мероприятия\n\n"
+    "Выбери, на что ищешь команду, — в ленте останутся только те, кто идёт туда же."
+)
+EVENTS_EMPTY = "Пока мероприятий нет 👀 Скоро добавим — а пока ищи сокомандников среди всех."
+EVENT_SET = "🎯 Цель: {title}\n\nТеперь в ленте только те, кто ищет команду туда же."
+EVENT_CLEARED = "Цель снята — ищешь сокомандников среди всех."
+EVENT_NOT_FOUND = "Это мероприятие уже прошло или снято с публикации. Выбери другое в «📅 Мероприятия»."
+EVENT_PENDING = "🎯 Как только заполнишь анкету, подберу людей на «{title}»."
+EVENT_FEED_EMPTY = (
+    "На «{title}» пока никто, кроме тебя, не ищет команду 👀\n\n"
+    "Позови однокурсников — по этой ссылке они сразу попадут в подбор на это мероприятие:\n{link}"
+)
+EVENT_CARD_LINE = "🎯 {title}"
+MENU_INCOMING = "👀 Тебя лайкнули: {n} — они уже в ленте, лайкни в ответ."
+MENU_TARGET = "🎯 Ищешь команду на: {title}"
+
+MONTHS = ["января", "февраля", "марта", "апреля", "мая", "июня",
+          "июля", "августа", "сентября", "октября", "ноября", "декабря"]
+
+
+def human_date(iso: str | None) -> str:
+    """2026-11-23 → «23 ноября»."""
+    if not iso:
+        return ""
+    year, month, day = (int(x) for x in iso.split("-"))
+    return f"{day} {MONTHS[month - 1]}"
+
+
+def event_card(ev: dict, index: int | None = None, current: bool = False) -> str:
+    """Мероприятие для списка: название, сроки, где, размер команды, сколько ищут."""
+    head = f"{index}. " if index else ""
+    lines = [f"{head}{ev['title']}" + (" ✅ твоя цель" if current else "")]
+    if ev.get("deadline_on"):
+        lines.append(f"⏳ Регистрация до {human_date(ev['deadline_on'])}")
+    if ev.get("starts_on"):
+        lines.append(f"🗓 Старт {human_date(ev['starts_on'])}")
+    place = ", ".join(x for x in dict.fromkeys([ev.get("format") or "", ev.get("city") or ""]) if x)
+    if place:
+        lines.append(f"📍 {place}")
+    if ev.get("team_size"):
+        lines.append(f"👥 Команда: {ev['team_size']}")
+    lines.append(f"🔎 Ищут команду: {ev.get('seekers', 0)}")
+    about = (ev.get("about") or "").strip()
+    if about:
+        lines.append(about if len(about) <= 160 else about[:157].rstrip() + "…")
+    return "\n".join(lines)
