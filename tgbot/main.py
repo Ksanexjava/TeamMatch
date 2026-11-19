@@ -15,11 +15,13 @@ from aiogram.types import BotCommand, MenuButtonCommands, MenuButtonWebApp, WebA
 from config import settings
 from db.session import init_db
 from tgbot.handlers import router
+from tgbot.ui import attach_bot, setup_dispatcher
 
 log = logging.getLogger("tgbot")
 
 COMMANDS = [
     BotCommand(command="start", description="Главное меню"),
+    BotCommand(command="events", description="Мероприятия: искать команду на конкретное"),
     BotCommand(command="profile", description="Моя анкета"),
     BotCommand(command="link", description="Подключить анкету из MAX"),
     BotCommand(command="help", description="Справка"),
@@ -39,6 +41,7 @@ def build_storage() -> BaseStorage:
 
 def build_dispatcher() -> Dispatcher:
     dp = Dispatcher(storage=build_storage())
+    setup_dispatcher(dp)  # кнопки только у последнего сообщения, апдейты одного человека — по очереди
     dp.include_router(router)
     return dp
 
@@ -56,7 +59,7 @@ async def prepare_db() -> None:
 
 async def setup_bot(bot: Bot) -> None:
     await bot.set_my_commands(COMMANDS)
-    if settings.webapp_url:
+    if settings.webapp_url and settings.telegram_webapp_button:
         await bot.set_chat_menu_button(menu_button=MenuButtonWebApp(
             text="Открыть", web_app=WebAppInfo(url=settings.webapp_url + "/")))
     else:
@@ -74,7 +77,9 @@ async def main() -> None:
     me = await bot.get_me()
     log.info("Telegram-бот запущен: @%s", me.username)
     await setup_bot(bot)
-    await build_dispatcher().start_polling(bot)
+    dp = build_dispatcher()
+    attach_bot(bot, dp)
+    await dp.start_polling(bot)
 
 
 if __name__ == "__main__":
