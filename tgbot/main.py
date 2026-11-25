@@ -78,9 +78,9 @@ def build_bot() -> Bot:
 
 async def setup_bot(bot: Bot) -> None:
     await bot.set_my_commands(COMMANDS)
-    if settings.webapp_url and settings.telegram_webapp_button:
+    if settings.telegram_webapp_url and settings.telegram_webapp_button:
         await bot.set_chat_menu_button(menu_button=MenuButtonWebApp(
-            text="Открыть", web_app=WebAppInfo(url=settings.webapp_url + "/")))
+            text="Открыть", web_app=WebAppInfo(url=settings.telegram_webapp_url + "/")))
     else:
         await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
     # Если на токене когда-то стоял вебхук, long polling не заработает.
