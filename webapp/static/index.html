@@ -7,12 +7,18 @@
   <title>Тиммейт</title>
   <link rel="icon" href="/static/mark.png">
   <link rel="preload" href="/static/fonts/roboto-condensed-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="/static/fonts/fonts.css?v=7">
-  <link rel="stylesheet" href="/static/app.css?v=7">
+  <link rel="stylesheet" href="/static/fonts/fonts.css?v=8">
+  <link rel="stylesheet" href="/static/app.css?v=8">
   <script>
     // Площадка определяется по фрагменту URL, который добавляет мессенджер:
     // Telegram — #tgWebAppData=…, MAX — #WebAppData=…
-    // Подключаем только SDK своей площадки.
+    //
+    // SDK подключается асинхронно и НЕ через document.write. Раньше скрипт
+    // вставлялся блокирующим: если telegram.org у человека недоступен (а в
+    // российских сетях это обычное дело), разбор страницы замирал на нём и
+    // пользователь видел пустой чёрный экран. Теперь без SDK приложение
+    // работает: данные запуска берутся из адреса страницы, а SDK, когда
+    // догрузится, лишь добавляет кнопку «Назад», тему и вибрацию.
     (function () {
       var hash = location.hash || "";
       var query = new URLSearchParams(location.search);
@@ -25,7 +31,16 @@
       window.__PLATFORM__ = platform;
       var src = platform === "tg" ? "https://telegram.org/js/telegram-web-app.js"
               : platform === "max" ? "https://st.max.ru/js/max-web-app.js" : null;
-      if (src) document.write('<script src="' + src + '"><\/script>');
+      if (!src) return;
+      var done = function () { window.dispatchEvent(new Event("sdkready")); };
+      var el = document.createElement("script");
+      el.src = src;
+      el.async = true;
+      el.onload = done;
+      el.onerror = done;
+      document.head.appendChild(el);
+      // Если площадка не ответила за три секунды — работаем без неё.
+      setTimeout(done, 3000);
     })();
   </script>
 </head>
@@ -35,6 +50,6 @@
   </div>
   <div id="sheet-root"></div>
   <div id="toast" role="status"></div>
-  <script src="/static/app.js?v=7"></script>
+  <script src="/static/app.js?v=8"></script>
 </body>
 </html>

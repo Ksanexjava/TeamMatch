@@ -51,10 +51,18 @@
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html, body { margin: 0; min-height: 100%; overflow-x: hidden; }
+
+/* overflow на <html> не ставим. Как только у корневого элемента появляется
+   не-visible overflow, прокручиваемым боксом становится он сам, а не окно,
+   и во встроенном браузере мессенджера страница перестаёт листаться: жест
+   забирает себе окно-хозяин. Горизонтальное переполнение режем на <body>
+   через clip — в отличие от hidden он не создаёт контейнер прокрутки. */
+html, body { margin: 0; min-height: 100%; }
 body {
   background: var(--paper); color: var(--ink);
   font: 16px/1.45 var(--text);
+  overflow-x: hidden;
+  overflow-x: clip;
   overscroll-behavior-y: none;
   -webkit-font-smoothing: antialiased;
 }
