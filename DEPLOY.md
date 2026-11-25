@@ -291,13 +291,13 @@ A-записи домена.
 — значит до России трафик доходит, и дело в конкретном хостинге. Не грузится —
 VPN рубит всю страну, и переезд ничего не изменит.
 
-**Обход для Telegram.** Перед приложением ставится ретранслятор на бесплатном
-Cloudflare Worker: скрипт и порядок установки — в
-[tools/webapp-proxy-worker.js](tools/webapp-proxy-worker.js). После установки в
-`.env`:
+**Обход для Telegram.** Перед приложением стоит ретранслятор на бесплатном
+Cloudflare Worker — он уже развёрнут под именем `teammate-app`, исходник в
+[tools/webapp-proxy-worker.js](tools/webapp-proxy-worker.js). Чтобы включить,
+достаточно прописать его адрес в `.env`:
 
 ```
-TELEGRAM_WEBAPP_URL=https://имя.поддомен.workers.dev
+TELEGRAM_WEBAPP_URL=https://teammate-app.michael-biysk.workers.dev
 ```
 
 и `docker compose up -d --build`. Тот же адрес прописывается в @BotFather →

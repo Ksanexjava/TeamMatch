@@ -12,14 +12,13 @@
  * поэтому это приемлемо. Перед пилотом с живыми людьми ретранслятор надо
  * убрать, а сервис перенести на хостинг, доступный напрямую.
  *
- * Как поставить.
- *   1. cloudflare.com → Workers & Pages → Create → Start with Hello World!
- *   2. Имя, например teammate-app. Deploy.
- *   3. Edit code → вставить этот файл целиком → Deploy.
- *   4. Адрес будет https://teammate-app.<поддомен>.workers.dev
- *   5. На сервере в .env:  TELEGRAM_WEBAPP_URL=https://teammate-app.<поддомен>.workers.dev
- *      затем: docker compose up -d --build
- *   6. В @BotFather: /mybots → бот → Bot Settings → Menu Button → тот же адрес.
+ * Уже выложен как воркер teammate-app, адрес:
+ *   https://teammate-app.michael-biysk.workers.dev
+ *
+ * Если понадобится развернуть заново: Cloudflare → Workers & Pages → Create →
+ * Start with Hello World, имя teammate-app, затем Edit code и вставить этот
+ * файл целиком. Адрес прописывается на сервере в TELEGRAM_WEBAPP_URL и в
+ * @BotFather → Bot Settings → Menu Button.
  *
  * MAX оставляем на прямом домене: мини-приложение там уже прошло модерацию
  * платформы, и смена адреса потребовала бы её заново.
@@ -39,8 +38,6 @@ export default {
       return new Response("Not found", { status: 404 });
     }
 
-    const target = ORIGIN + url.pathname + url.search;
-
     const headers = new Headers(request.headers);
     // Host подставит сам fetch по адресу назначения.
     headers.delete("Host");
@@ -50,15 +47,27 @@ export default {
     headers.set("X-Forwarded-Proto", "https");
 
     const noBody = request.method === "GET" || request.method === "HEAD";
-    const upstream = await fetch(target, {
-      method: request.method,
-      headers,
-      // Анкеты и фотографии невелики: читаем тело целиком, так надёжнее потока.
-      body: noBody ? undefined : await request.arrayBuffer(),
-      redirect: "manual",
-    });
+    let upstream;
+    try {
+      upstream = await fetch(ORIGIN + url.pathname + url.search, {
+        method: request.method,
+        headers,
+        // Анкеты и фотографии невелики: читаем тело целиком, так надёжнее потока.
+        body: noBody ? undefined : await request.arrayBuffer(),
+        redirect: "manual",
+      });
+    } catch (e) {
+      // Понятный текст вместо пустой страницы, если сервер не отвечает.
+      return new Response(
+        "Сервер Тиммейта не отвечает: " + ((e && e.message) || "нет соединения"),
+        { status: 502, headers: { "Content-Type": "text/plain; charset=utf-8" } },
+      );
+    }
 
     const out = new Headers(upstream.headers);
+    // Переадресация не должна уводить человека с ретранслятора на прямой домен.
+    const loc = out.get("Location");
+    if (loc && loc.startsWith(ORIGIN)) out.set("Location", url.origin + loc.slice(ORIGIN.length));
     // Ответы приложения не кэшируем: лента и анкеты у каждого свои.
     if (url.pathname.startsWith("/api/")) {
       out.set("Cache-Control", "no-store");
