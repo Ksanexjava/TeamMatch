@@ -29,6 +29,7 @@ class Settings:
     telegram_bot_token: str
     telegram_api_base: str
     webapp_url: str
+    telegram_webapp_url_raw: str
     media_dir: str
     init_data_ttl: int
     dev_auth: bool
@@ -38,6 +39,11 @@ class Settings:
     support_email: str
     admin_token: str
     telegram_webapp_button: bool
+
+    @property
+    def telegram_webapp_url(self) -> str:
+        """Адрес мини-приложения, который открывает Telegram."""
+        return self.telegram_webapp_url_raw or self.webapp_url
 
     @property
     def legal_base_url(self) -> str:
@@ -68,6 +74,10 @@ settings = Settings(
     # Нужен там, где хостинг не выпускает соединения к Telegram (см. DEPLOY.md).
     telegram_api_base=os.environ.get("TELEGRAM_API_BASE", "").strip().rstrip("/"),
     webapp_url=os.environ.get("WEBAPP_URL", "").rstrip("/"),
+    # Отдельный адрес мини-приложения для Telegram. Нужен, когда прямой
+    # домен недоступен части пользователей (например, из-под VPN) и перед
+    # ним ставится ретранслятор. Пусто — берётся WEBAPP_URL.
+    telegram_webapp_url_raw=os.environ.get("TELEGRAM_WEBAPP_URL", "").strip().rstrip("/"),
     media_dir=os.environ.get("MEDIA_DIR", "./media"),
     init_data_ttl=int(os.environ.get("INIT_DATA_TTL", "86400")),
     # Только для локальной разработки: пускает без подписи мессенджера. На сервере — 0.
