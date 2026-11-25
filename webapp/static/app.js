@@ -9,52 +9,76 @@
 
   const P = (function () {
     const name = window.__PLATFORM__ || "web";
-    const tg = name === "tg" ? (window.Telegram && window.Telegram.WebApp) : null;
-    const mx = name === "max" ? window.WebApp : null;
-    const sdk = tg || mx || null;
 
-    let initData = (sdk && sdk.initData) || "";
-    if (name === "max" && !initData) {
-      // Запасной путь: MAX кладёт данные во фрагмент URL — #WebAppData=…&WebAppPlatform=…
+    // SDK ищем каждый раз заново, а не один раз при старте: он грузится
+    // асинхронно и может появиться уже после первой отрисовки. До его
+    // появления приложение работает полностью, просто без кнопки «Назад»,
+    // темы от мессенджера и вибрации.
+    const tg = () => (name === "tg" && window.Telegram && window.Telegram.WebApp) || null;
+    const mx = () => (name === "max" && window.WebApp) || null;
+    const sdk = () => tg() || mx() || null;
+
+    // Данные запуска мессенджер кладёт во фрагмент адреса, и они доступны
+    // сразу, без SDK: Telegram — tgWebAppData, MAX — WebAppData.
+    const fromHash = () => {
       const frag = new URLSearchParams((location.hash || "").replace(/^#/, ""));
-      initData = frag.get("WebAppData") || "";
-    }
+      return frag.get(name === "tg" ? "tgWebAppData" : "WebAppData") || "";
+    };
+    const launchData = fromHash();
 
     let backHandler = null;
+    let ready = false;
     const safe = (fn) => { try { return fn(); } catch (e) { return undefined; } };
     const paint = () => {
-      if (!tg) return;
+      const t = tg();
+      if (!t) return;
       const dark = document.documentElement.dataset.theme === "dark";
-      safe(() => tg.setHeaderColor && tg.setHeaderColor(dark ? "#111111" : "#FFFFFF"));
-      safe(() => tg.setBackgroundColor && tg.setBackgroundColor(dark ? "#111111" : "#FFFFFF"));
+      safe(() => t.setHeaderColor && t.setHeaderColor(dark ? "#111111" : "#FFFFFF"));
+      safe(() => t.setBackgroundColor && t.setBackgroundColor(dark ? "#111111" : "#FFFFFF"));
     };
 
-    return {
+    const api = {
       name,
-      initData,
+      get initData() {
+        const s = sdk();
+        return (s && s.initData) || launchData;
+      },
       label: { tg: "Telegram", max: "MAX" }[name] || "браузер",
       other: { tg: "MAX", max: "Telegram" }[name] || "Telegram или MAX",
       devName: new URLSearchParams(location.search).get("dev") || "local",
       ready() {
-        if (tg) {
-          safe(() => tg.ready());
-          safe(() => tg.expand());
-          safe(() => tg.disableVerticalSwipes && tg.disableVerticalSwipes());
-          if (tg.colorScheme) document.documentElement.dataset.theme = tg.colorScheme;
+        const t = tg(), m = mx();
+        if (t) {
+          safe(() => t.ready());
+          safe(() => t.expand());
+          // Иначе вертикальный свайп закрывает окно вместо прокрутки страницы.
+          safe(() => t.disableVerticalSwipes && t.disableVerticalSwipes());
+          if (t.colorScheme) document.documentElement.dataset.theme = t.colorScheme;
           paint();
-          safe(() => tg.onEvent("themeChanged", () => { document.documentElement.dataset.theme = tg.colorScheme; paint(); }));
+          if (!ready) safe(() => t.onEvent("themeChanged", () => {
+            document.documentElement.dataset.theme = t.colorScheme; paint();
+          }));
         }
-        if (mx) safe(() => mx.ready && mx.ready());
+        if (m) {
+          safe(() => m.ready && m.ready());
+          // Без разворота окна MAX открывает приложение шторкой, и хозяин
+          // окна перехватывает вертикальные жесты — страница не прокручивается.
+          safe(() => m.expand && m.expand());
+          safe(() => m.disableVerticalSwipes && m.disableVerticalSwipes());
+        }
+        ready = true;
       },
       setBack(fn) {
-        if (!sdk || !sdk.BackButton) { backHandler = fn; return; }
-        if (backHandler) safe(() => sdk.BackButton.offClick(backHandler));
+        const s = sdk();
+        if (!s || !s.BackButton) { backHandler = fn; return; }
+        if (backHandler) safe(() => s.BackButton.offClick(backHandler));
         backHandler = fn || null;
-        if (fn) { safe(() => sdk.BackButton.onClick(fn)); safe(() => sdk.BackButton.show()); }
-        else safe(() => sdk.BackButton.hide());
+        if (fn) { safe(() => s.BackButton.onClick(fn)); safe(() => s.BackButton.show()); }
+        else safe(() => s.BackButton.hide());
       },
       haptic(kind) {
-        const h = sdk && sdk.HapticFeedback;
+        const s = sdk();
+        const h = s && s.HapticFeedback;
         if (!h) return;
         safe(() => {
           let r;
@@ -65,21 +89,32 @@
         });
       },
       closingConfirmation(on) {
-        if (!sdk) return;
-        safe(() => on ? sdk.enableClosingConfirmation() : sdk.disableClosingConfirmation());
+        const s = sdk();
+        if (!s) return;
+        safe(() => on ? s.enableClosingConfirmation() : s.disableClosingConfirmation());
       },
       openLink(url) {
         const abs = new URL(url, location.href).href;
-        if (sdk && sdk.openLink) safe(() => sdk.openLink(abs));
+        const s = sdk();
+        if (s && s.openLink) safe(() => s.openLink(abs));
         else window.open(abs, "_blank", "noopener");
       },
       openMessengerLink(url) {
         // Ссылка на бота в мессенджере: внутри Telegram — t.me, внутри MAX — max.ru.
-        if (tg && url.startsWith("https://t.me/") && tg.openTelegramLink) return safe(() => tg.openTelegramLink(url));
-        if (mx && url.startsWith("https://max.ru/") && mx.openMaxLink) return safe(() => mx.openMaxLink(url));
+        const t = tg(), m = mx();
+        if (t && url.startsWith("https://t.me/") && t.openTelegramLink) return safe(() => t.openTelegramLink(url));
+        if (m && url.startsWith("https://max.ru/") && m.openMaxLink) return safe(() => m.openMaxLink(url));
         this.openLink(url);
       },
     };
+
+    // SDK догрузился позже первой отрисовки — доприменяем то, что он даёт.
+    window.addEventListener("sdkready", () => {
+      api.ready();
+      if (backHandler) api.setBack(backHandler);
+    });
+
+    return api;
   })();
 
   // ---------------------------------------------------------------- API
